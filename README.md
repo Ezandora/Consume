@@ -1,7 +1,8 @@
 Consume
 =====
-FEED ME
-Early personal copy that needs to be rewritten. Untested and will break. Use at your own peril.
+FEED ME  
+Early personal copy that needs to be rewritten. Untested and will break.  
+**Use at your own peril.**
 
 Installation
 ----------------
