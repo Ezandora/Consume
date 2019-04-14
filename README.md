@@ -27,6 +27,7 @@ Type "**consume**" in the graphical CLI.
 **simulate**: Only calculate a plan, don't execute it. Not always accurate in ronin.  
 
 **Examples:**  
+**consume default**: consumes at valueOfAdventure MPA  
 **consume 3400**: consumes at 3400 MPA  
 **consume overdrink**: overdrinks at valueOfAdventure MPA  
 **consume nodrink 3400**: consumes at 3400 MPA, but don't drink anything  

@@ -4381,7 +4381,7 @@ void castOde(int min_turns)
 }
 
 //Use "consume.ash help" to see commands.
-string __consumption_version = "1.0.1";
+string __consumption_version = "1.0.2";
 
 boolean __setting_avoid_nontradeables = true; //if you disable this, you're on your own - script has no real idea how to score a non-tradeable item
 float __setting_meat_per_adventure = get_property("valueOfAdventure").to_int();
@@ -5384,6 +5384,7 @@ void consumeOutputHelp()
 	}
 	print_html(" ");
 	print_html("Examples:");
+	print_html("<b>consume default</b>: consumes at valueOfAdventure MPA");
 	print_html("<b>consume 3400</b>: consumes at 3400 MPA");
 	print_html("<b>consume overdrink</b>: overdrinks at valueOfAdventure MPA (currently " + get_property("valueOfAdventure").to_int() + ")");
 	print_html("<b>consume nodrink 3400</b>: consumes at 3400 MPA, but don't drink anything");
@@ -5396,6 +5397,11 @@ void main(string arguments)
 	boolean whitelist_food = false;
 	boolean whitelist_drink = false;
 	boolean whitelist_spleen = false;
+	if (arguments == "" || arguments == "")
+	{
+		consumeOutputHelp();
+		return;
+	}
 	foreach key, s in arguments_split
 	{
 		if (s == "") continue;
