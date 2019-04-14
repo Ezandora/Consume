@@ -4381,7 +4381,7 @@ void castOde(int min_turns)
 }
 
 //Use "consume.ash help" to see commands.
-string __consumption_version = "1.0";
+string __consumption_version = "1.0.1";
 
 boolean __setting_avoid_nontradeables = true; //if you disable this, you're on your own - script has no real idea how to score a non-tradeable item
 float __setting_meat_per_adventure = get_property("valueOfAdventure").to_int();
@@ -5393,6 +5393,9 @@ void main(string arguments)
 {
 	string [int] arguments_split = arguments.split_string(" ");
 	boolean overdrink_only = false;
+	boolean whitelist_food = false;
+	boolean whitelist_drink = false;
+	boolean whitelist_spleen = false;
 	foreach key, s in arguments_split
 	{
 		if (s == "") continue;
@@ -5424,6 +5427,7 @@ void main(string arguments)
 			__allow_food = false;
 			__allow_drink = false;
 			__allow_spleen = true;
+			whitelist_spleen = true;
 		}
 		if (s.contains_text("nofood"))
 		{
@@ -5434,6 +5438,7 @@ void main(string arguments)
 			__allow_food = true;
 			__allow_drink = false;
 			__allow_spleen = false;
+			whitelist_food = true;
 		}
 		if (s.contains_text("nodrink"))
 		{
@@ -5444,6 +5449,7 @@ void main(string arguments)
 			__allow_food = false;
 			__allow_drink = true;
 			__allow_spleen = false;
+			whitelist_drink = true;
 		}
 		if (s.contains_text("ascend"))
 		{
@@ -5461,6 +5467,14 @@ void main(string arguments)
 		if (s.contains_text("overdrink"))
 			overdrink_only = true;
 	}
+	
+	if (whitelist_food)
+		__allow_food = true;
+	if (whitelist_drink)
+		__allow_drink = true;
+	if (whitelist_spleen)
+		__allow_spleen = true;
+		
 	if (__consume_for_pvp_fights_instead && !hippy_stone_broken())
 	{
 		print("Break your hippy stone first.");
