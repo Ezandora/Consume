@@ -4381,7 +4381,7 @@ void castOde(int min_turns)
 }
 
 //Use "consume.ash help" to see commands.
-string __consumption_version = "1.0.2";
+string __consumption_version = "1.0.3";
 
 boolean __setting_avoid_nontradeables = true; //if you disable this, you're on your own - script has no real idea how to score a non-tradeable item
 float __setting_meat_per_adventure = get_property("valueOfAdventure").to_int();
@@ -5392,6 +5392,13 @@ void consumeOutputHelp()
 
 void main(string arguments)
 {
+	if (!get_property("autoSatisfyWithMall").to_boolean() && can_interact())
+	{
+		print_html("Please run (or click on) this command:");
+		print_html("<a href=\"KoLmafia/sideCommand?cmd=set+autoSatisfyWithMall=true&pwd=" + my_hash() + "\">set autoSatisfyWithMall=true</a>");
+
+		return;
+	}
 	string [int] arguments_split = arguments.split_string(" ");
 	boolean overdrink_only = false;
 	boolean whitelist_food = false;
