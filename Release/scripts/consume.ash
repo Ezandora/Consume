@@ -931,11 +931,23 @@ string [string] mapCopy(string [string] map)
 
 boolean mapsAreEqual(string [string] map1, string [string] map2)
 {
-	if (map1.count() != map2.count()) return false;
+	if (map1.count() != map2.count())
+	{
+        //print_html("map1.c = " + map1.count() + " which is not " + map2.count());
+		return false;
+    }
 	foreach key1, v in map1
 	{
-		if (!(map2 contains key1)) return false;
-        if (map2[key1] != v) return false;
+		if (!(map2 contains key1))
+        {
+        	//print_html("map2 lacks " + key1);
+        	return false;
+        }
+        if (map2[key1] != v)
+        {
+            //print_html("map2 v(" + map2[key1] + " does not equal " + key1 + " (" + v + ")");
+        	return false;
+        }
 	}
 	return true;
 }
@@ -4381,7 +4393,7 @@ void castOde(int min_turns)
 }
 
 //Use "consume.ash help" to see commands.
-string __consumption_version = "1.0.3";
+string __consumption_version = "1.0.4";
 
 boolean __setting_avoid_nontradeables = true; //if you disable this, you're on your own - script has no real idea how to score a non-tradeable item
 float __setting_meat_per_adventure = get_property("valueOfAdventure").to_int();
@@ -4394,6 +4406,7 @@ boolean [item] __consumption_no_confirm_whitelist = $items[pixel daiquiri,Go-Was
 
 
 //FIXME support: munchies pills, those batfellow consumes, melanges?, UMSBs? alien plant pods?
+//prayers, semi-rares
 static
 {
 	boolean [item] __all_drinks;
@@ -4749,8 +4762,11 @@ void computeConsumptionPlan(ConsumptionPlan plan)
 		{
 			adventures_base = it.notes.group_string("\\+([0-9]*) PvP fight")[0][1].to_int_silent();
 			//adventures_weight = 0.001;
+			
 		}
 		float forked_adventures = adventures_base * 1.3;
+		if (__consume_for_pvp_fights_instead)
+			forked_adventures = 0;
 		//FIXME check palate/pinky ring interactions
 		if (__consumption_wines[it] && $effect[Refined Palate].have_effect() > 0)
 		{
@@ -5345,6 +5361,14 @@ void overdrink(int mpa)
 		//have you seen the well-to-do?
 		use_familiar($familiar[stooper]);
 		consumeDrink(mpa);
+		
+		if (__consume_for_pvp_fights_instead && availableDrunkenness() > 0)
+		{
+			//Recompute for adventures:
+			__consume_for_pvp_fights_instead = false;
+			consumeDrink(mpa);
+			__consume_for_pvp_fights_instead = true;
+		}
 	}
 	
 	ConsumptionPlan drink_plan;
