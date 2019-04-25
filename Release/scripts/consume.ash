@@ -4393,7 +4393,7 @@ void castOde(int min_turns)
 }
 
 //Use "consume.ash help" to see commands.
-string __consumption_version = "1.0.4";
+string __consumption_version = "1.0.5";
 
 boolean __setting_avoid_nontradeables = true; //if you disable this, you're on your own - script has no real idea how to score a non-tradeable item
 float __setting_meat_per_adventure = get_property("valueOfAdventure").to_int();
@@ -4736,7 +4736,7 @@ void computeConsumptionPlan(ConsumptionPlan plan)
 			continue;
 		if (!it.tradeable && it.available_amount() - plan.what_to_consume[it] == 0)
 			continue;
-		if (!it.tradeable && __setting_avoid_nontradeables && can_interact())
+		if (!it.tradeable && !it.quest && __setting_avoid_nontradeables && can_interact())
 			continue;
 		if (it.levelreq > my_level() || (it.levelreq >= 13 && !can_interact()))
 			continue;
