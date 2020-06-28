@@ -837,6 +837,14 @@ boolean [monster] listCopy(boolean [monster] l)
     return result;
 }
 
+int [item] listCopy(int [item] l)
+{
+    int [item] result;
+    foreach key in l
+        result[key] = l[key];
+    return result;
+}
+
 //Strict, in this case, means the keys start at 0, and go up by one per entry. This allows easy consistent access
 boolean listKeysMeetStrictRequirements(string [int] list)
 {
@@ -1097,6 +1105,18 @@ int listKeyForIndex(monster [int] list, int index)
 	return -1;
 }
 
+int listKeyForIndex(int [int] list, int index)
+{
+    int i = 0;
+    foreach key in list
+    {
+        if (i == index)
+            return key;
+        i += 1;
+    }
+    return -1;
+}
+
 int llistKeyForIndex(string [int][int] list, int index)
 {
 	int i = 0;
@@ -1151,6 +1171,15 @@ monster listGetRandomObject(monster [int] list)
         return $monster[none];
     if (list.count() == 1)
     	return list[listKeyForIndex(list, 0)];
+    return list[listKeyForIndex(list, random(list.count()))];
+}
+
+int listGetRandomObject(int [int] list)
+{
+    if (list.count() == 0)
+        return -1;
+    if (list.count() == 1)
+        return list[listKeyForIndex(list, 0)];
     return list[listKeyForIndex(list, random(list.count()))];
 }
 
@@ -1269,6 +1298,7 @@ int [int] stringToIntIntList(string input, string delimiter)
 		return out;
 	foreach key, v in input.split_string(delimiter)
 	{
+		if (v == "") continue;
 		out.listAppend(v.to_int());
 	}
 	return out;
@@ -1277,6 +1307,13 @@ int [int] stringToIntIntList(string input, string delimiter)
 int [int] stringToIntIntList(string input)
 {
 	return stringToIntIntList(input, ",");
+}
+
+boolean [location] locationToLocationMap(location l)
+{
+	boolean [location] map;
+	map[l] = true;
+	return map;
 }
 
 //Allows error checking. The intention behind this design is Errors are passed in to a method. The method then sets the error if anything went wrong.
@@ -1827,12 +1864,18 @@ string capitaliseFirstLetter(string v)
 	return buf.to_string();
 }
 
+//shadowing; this may override ints
 string pluralise(float value, string non_plural, string plural)
 {
+	string value_out = "";
+	if (value.to_int() == value)
+		value_out = value.to_int();
+    else
+    	value_out = value;
 	if (value == 1.0)
-		return value + " " + non_plural;
+		return value_out + " " + non_plural;
 	else
-		return value + " " + plural;
+		return value_out + " " + plural;
 }
 
 string pluralise(int value, string non_plural, string plural)
@@ -2277,84 +2320,19 @@ static
     int PATH_DARK_GYFFTE = 35;
     int PATH_DARK_GIFT = 35;
     int PATH_VAMPIRE = 35;
-}
-
-int __my_path_id_cached = -11;
-int my_path_id()
-{
-    if (__my_path_id_cached != -11)
-        return __my_path_id_cached;
-    string path_name = my_path();
-    
-    if (path_name == "" || path_name == "None")
-        __my_path_id_cached = PATH_NONE;
-    else if (path_name == "Teetotaler")
-        __my_path_id_cached = PATH_TEETOTALER;
-    else if (path_name == "Boozetafarian")
-        __my_path_id_cached = PATH_BOOZETAFARIAN;
-    else if (path_name == "Oxygenarian")
-        __my_path_id_cached = PATH_OXYGENARIAN;
-    else if (path_name == "Bees Hate You")
-        __my_path_id_cached = PATH_BEES_HATE_YOU;
-    else if (path_name == "Way of the Surprising Fist")
-        __my_path_id_cached = PATH_WAY_OF_THE_SURPRISING_FIST;
-    else if (path_name == "Trendy")
-        __my_path_id_cached = PATH_TRENDY;
-    else if (path_name == "Avatar of Boris")
-        __my_path_id_cached = PATH_AVATAR_OF_BORIS;
-    else if (path_name == "Bugbear Invasion")
-        __my_path_id_cached = PATH_BUGBEAR_INVASION;
-    else if (path_name == "Zombie Slayer")
-        __my_path_id_cached = PATH_ZOMBIE_SLAYER;
-    else if (path_name == "Class Act")
-        __my_path_id_cached = PATH_CLASS_ACT;
-    else if (path_name == "Avatar of Jarlsberg")
-        __my_path_id_cached = PATH_AVATAR_OF_JARLSBERG;
-    else if (path_name == "BIG!")
-        __my_path_id_cached = PATH_BIG;
-    else if (path_name == "KOLHS")
-        __my_path_id_cached = PATH_KOLHS;
-    else if (path_name == "Class Act II: A Class For Pigs")
-        __my_path_id_cached = PATH_CLASS_ACT_2;
-    else if (path_name == "Avatar of Sneaky Pete")
-        __my_path_id_cached = PATH_AVATAR_OF_SNEAKY_PETE;
-    else if (path_name == "Slow and Steady")
-        __my_path_id_cached = PATH_SLOW_AND_STEADY;
-    else if (path_name == "Heavy Rains")
-        __my_path_id_cached = PATH_HEAVY_RAINS;
-    else if (path_name == "Picky")
-        __my_path_id_cached = PATH_PICKY;
-    else if (path_name == "Standard")
-        __my_path_id_cached = PATH_STANDARD;
-    else if (path_name == "Actually Ed the Undying")
-        __my_path_id_cached = PATH_ACTUALLY_ED_THE_UNDYING;
-    else if (path_name == "One Crazy Random Summer")
-        __my_path_id_cached = PATH_ONE_CRAZY_RANDOM_SUMMER;
-    else if (path_name == "Community Service" || path_name == "25")
-        __my_path_id_cached = PATH_COMMUNITY_SERVICE;
-    else if (path_name == "Avatar of West of Loathing")
-        __my_path_id_cached = PATH_AVATAR_OF_WEST_OF_LOATHING;
-    else if (path_name == "The Source")
-        __my_path_id_cached = PATH_THE_SOURCE;
-    else if (path_name == "Nuclear Autumn" || path_name == "28")
-        __my_path_id_cached = PATH_NUCLEAR_AUTUMN;
-    else if (path_name == "Gelatinous Noob")
-        __my_path_id_cached = PATH_GELATINOUS_NOOB;
-    else if (path_name == "License to Adventure")
-        __my_path_id_cached = PATH_LICENSE_TO_ADVENTURE;
-    else if (path_name == "Live. Ascend. Repeat.")
-        __my_path_id_cached = PATH_LIVE_ASCEND_REPEAT;
-    else if (path_name == "Pocket Familiars" || path_name == "32")
-        __my_path_id_cached = PATH_POCKET_FAMILIARS;
-    else if (path_name == "G-Lover" || path_name == "33")
-        __my_path_id_cached = PATH_G_LOVER;
-    else if (path_name == "Disguises Delimit" || path_name == 34)
-    	__my_path_id_cached = PATH_DISGUISES_DELIMIT;
-    else if (path_name == "Dark Gyffte")
-    	__my_path_id_cached = PATH_DARK_GYFFTE;
-    else
-        __my_path_id_cached = PATH_UNKNOWN;
-    return __my_path_id_cached;
+    int PATH_2CRS = 36;
+    int PATH_KINGDOM_OF_EXPLOATHING = 37;
+    int PATH_EXPLOSION = 37;
+    int PATH_EXPLOSIONS = 37;
+    int PATH_EXPLODING = 37;
+    int PATH_EXPLODED = 37;
+    int PATH_OF_THE_PLUMBER = 38;
+    int PATH_PLUMBER = 38;
+    int PATH_LUIGI = 38;
+    int PATH_MAMA_LUIGI = 38;
+    int PATH_MARIO = 38;
+    int PATH_LOW_KEY_SUMMER = 39;
+    int PATH_LOKI = 39;
 }
 
 float numeric_modifier_replacement(item it, string modifier)
@@ -2575,6 +2553,26 @@ static
     monster [location] __protonic_monster_for_location {$location[Cobb's Knob Treasury]:$monster[The ghost of Ebenoozer Screege], $location[The Haunted Conservatory]:$monster[The ghost of Lord Montague Spookyraven], $location[The Haunted Gallery]:$monster[The ghost of Waldo the Carpathian], $location[The Haunted Kitchen]:$monster[The Icewoman], $location[The Haunted Wine Cellar]:$monster[The ghost of Jim Unfortunato], $location[The Icy Peak]:$monster[The ghost of Sam McGee], $location[Inside the Palindome]:$monster[Emily Koops, a spooky lime], $location[Madness Bakery]:$monster[the ghost of Monsieur Baguelle], $location[The Old Landfill]:$monster[The ghost of Vanillica "Trashblossom" Gorton], $location[The Overgrown Lot]:$monster[the ghost of Oily McBindle], $location[The Skeleton Store]:$monster[boneless blobghost], $location[The Smut Orc Logging Camp]:$monster[The ghost of Richard Cockingham], $location[The Spooky Forest]:$monster[The Headless Horseman]};
 }
 
+
+
+static
+{
+	boolean [monster][location] __monsters_natural_habitats;
+}
+boolean [location] getPossibleLocationsMonsterCanAppearInNaturally(monster m)
+{
+	if (__monsters_natural_habitats.count() == 0)
+	{
+		//initialise:
+        foreach l in $locations[]
+        {
+        	foreach key, m in l.get_monsters()
+            	__monsters_natural_habitats[m][l] = true;
+        }
+	}
+	return __monsters_natural_habitats[m];
+}
+
 boolean mafiaIsPastRevision(int revision_number)
 {
     if (get_revision() <= 0) //get_revision reports zero in certain cases; assume they're on a recent version
@@ -2643,6 +2641,16 @@ boolean a_skill_is_usable(boolean [skill] skills)
 		if (s.skill_is_usable()) return true;
 	}
 	return false;
+}
+
+boolean skill_is_currently_castable(skill s)
+{
+	//FIXME accordion thief songs, MP, a lot of things
+    if (s == $skill[Utensil Twist] && $slot[weapon].equipped_item().item_type() != "utensil")
+    {
+        return false;
+    }
+    return true;
 }
 
 boolean item_is_usable(item it)
@@ -2942,18 +2950,39 @@ int substatsForLevel(int level)
 
 int availableFullness()
 {
-	return fullness_limit() - my_fullness();
+	int limit = fullness_limit();
+    if (my_path_id() == PATH_ACTUALLY_ED_THE_UNDYING && limit == 0 && $skill[Replacement Stomach].have_skill())
+    {
+        limit += 5;
+    }
+	return limit - my_fullness();
 }
 
 int availableDrunkenness()
 {
-    if (inebriety_limit() == 0) return 0; //certain edge cases
-	return inebriety_limit() - my_inebriety();
+    int limit = inebriety_limit();
+    if (my_path_id() == PATH_ACTUALLY_ED_THE_UNDYING && limit == 0 && $skill[Replacement Liver].have_skill())
+    {
+    	limit += 5;
+    }
+    if (limit == 0) return 0; //certain edge cases
+	return limit - my_inebriety();
 }
 
 int availableSpleen()
 {
-	return spleen_limit() - my_spleen_use();
+	int limit = spleen_limit();
+	if (my_path_id() == PATH_ACTUALLY_ED_THE_UNDYING && limit == 0)
+	{
+        limit += 5; //always true
+		//mafia resets the limits to zero in the underworld because it does, so anti-mafia:
+        foreach s in $skills[Extra Spleen,Another Extra Spleen,Yet Another Extra Spleen,Still Another Extra Spleen,Just One More Extra Spleen,Okay Seriously\, This is the Last Spleen]
+        {
+        	if (s.have_skill())
+         		limit += 5;
+        }
+	} 
+	return limit - my_spleen_use();
 }
 
 item [int] missingComponentsToMakeItemPrivateImplementation(item it, int it_amounted_needed, int recursion_limit_remaining)
@@ -3831,7 +3860,7 @@ float averageAdventuresForConsumable(item it, boolean assume_monday)
             adventures = 9; //saved across lifetimes
     }
 	
-	if ($skill[saucemaven].have_skill() && ($items[hot hi mein,cold hi mein,sleazy hi mein,spooky hi mein,stinky hi mein,Hell ramen,fettucini Inconnu,gnocchetti di Nietzsche,spaghetti with Skullheads,spaghetti con calaveras] contains it || lookupItems("haunted hell ramen") contains it))
+	if ($skill[saucemaven].have_skill() && ($items[hot hi mein,cold hi mein,sleazy hi mein,spooky hi mein,stinky hi mein,Hell ramen,fettucini Inconnu,gnocchetti di Nietzsche,spaghetti with Skullheads,spaghetti con calaveras,Fleetwood mac 'n' cheese,haunted hell ramen] contains it))
 	{
 		if ($classes[sauceror,pastamancer] contains my_class())
 			adventures += 5;
@@ -4182,6 +4211,25 @@ void printSilent(string line)
     print_html(line.processStringForPrinting());
 }
 
+//have_equipped() exists
+boolean equipped(item it)
+{
+	return it.equipped_amount() > 0;
+}
+
+boolean have(item it)
+{
+	return it.available_amount() > 0;
+}
+
+boolean canAccessMall()
+{
+	if (!can_interact()) return false;
+	if (!get_property_boolean("autoSatisfyWithMall")) return false;
+	if (my_ascensions() == 0 && !get_property_ascension("lastDesertUnlock")) return false;
+	return true;
+}
+
 int [item] __cost_to_acquire_override;
 void set_cost_to_acquire_override(item it, int override_value)
 {
@@ -4295,6 +4343,8 @@ Record ArchivedEquipment
 {
 	item [slot] previous_equipment;
 	familiar previous_familiar;
+	familiar previous_enthroned_familiar;
+	familiar previous_bjorned_familiar;
 };
 
 ArchivedEquipment __global_archived_equipment;
@@ -4306,6 +4356,8 @@ ArchivedEquipment ArchiveEquipment()
 	foreach s in $slots[hat,weapon,off-hand,back,shirt,pants,acc1,acc2,acc3,familiar]
 		ae.previous_equipment[s] = s.equipped_item();
 	ae.previous_familiar = my_familiar();
+	ae.previous_enthroned_familiar = my_enthroned_familiar();
+	ae.previous_bjorned_familiar = my_bjorned_familiar();
 	
 	__global_archived_equipment = ae;
 	return ae;
@@ -4317,9 +4369,18 @@ void RestoreArchivedEquipment(ArchivedEquipment ae)
 	use_familiar(ae.previous_familiar);
 	foreach s, it in ae.previous_equipment
 	{
-		if (s.equipped_item() != it && it.available_amount() > 0)
-			equip(s, it);
+		if (s.equipped_item() != it)
+		{
+			if (it.available_amount() > 0)
+				equip(s, it);
+			else if (it == $item[none])
+				equip(s, it);
+		}
 	}
+	if ($item[crown of thrones].equipped_amount() > 0 && ae.previous_enthroned_familiar != $familiar[none])
+		enthrone_familiar(ae.previous_enthroned_familiar);
+	if ($item[buddy bjorn].equipped_amount() > 0 && ae.previous_bjorned_familiar != $familiar[none])
+		bjornify_familiar(ae.previous_bjorned_familiar);
 }
 
 void RestoreArchivedEquipment()
@@ -4393,16 +4454,18 @@ void castOde(int min_turns)
 }
 
 //Use "consume.ash help" to see commands.
-string __consumption_version = "1.0.5";
+string __consumption_version = "1.0.6";
 
 boolean __setting_avoid_nontradeables = true; //if you disable this, you're on your own - script has no real idea how to score a non-tradeable item
 float __setting_meat_per_adventure = get_property("valueOfAdventure").to_int();
 boolean __setting_confirm_unknown_consumables = (my_id() == 1557284);
 //stuff that's rare and expensive, or difficult to acquire, for safety:
-boolean [item] __consumption_blacklist = $items[Pan-Dimensional Gargle Blaster,Ralph IX cognac,breaded beer,cranberry schnapps,marshmallow flamb&eacute;,soy cordial,Spasmi Dolorosi Del Rene Champagne,Acqua Del Piatto Merlot,Acque Luride Grezze Cabernet,Uovo Marcio Shiraz,Maiali Sifilitici Pinot Noir,Ferita Del Petto Zinfandel,Grimacite Bock,Cinco Mayo Lager,Jeppson's Malort,bottle of Bloodweiser,Flivver,Dinsey Whinskey,instant karma,Breathetastic&trade; Premium Canned Air,sandwich of the gods,spaghetti breakfast,grue egg omelette,enchanted leopard-print barbell,liquid shifting time weirdness,unidentified drink]; //'
+boolean [item] __consumption_blacklist = $items[Pan-Dimensional Gargle Blaster,Ralph IX cognac,breaded beer,cranberry schnapps,marshmallow flamb&eacute;,soy cordial,Spasmi Dolorosi Del Rene Champagne,Acqua Del Piatto Merlot,Acque Luride Grezze Cabernet,Uovo Marcio Shiraz,Maiali Sifilitici Pinot Noir,Ferita Del Petto Zinfandel,Grimacite Bock,Cinco Mayo Lager,Jeppson's Malort,bottle of Bloodweiser,Flivver,Dinsey Whinskey,instant karma,Breathetastic&trade; Premium Canned Air,sandwich of the gods,spaghetti breakfast,grue egg omelette,enchanted leopard-print barbell,liquid shifting time weirdness,unidentified drink,jerky coins]; //'
 
 //my personal use:
-boolean [item] __consumption_no_confirm_whitelist = $items[pixel daiquiri,Go-Wassail,perfect cosmopolitan,perfect dark and stormy,perfect negroni,perfect mimosa,perfect old-fashioned,perfect paloma,pumpkin beer,Crimbojito,Feliz Navidad,Gin Mint,Mint Yulep,Sangria de Menthe,Vodka Matryoshka,antimatter wad,transdermal smoke patch,Unconscious Collective Dream Jar,paint a vulgar pitcher,gnat lasagna,snow crab,octolus oculus,chocolate seal-clubbing club,hot hi mein,cold hi mein,spooky hi mein,sleazy hi mein,Psychotic Train wine,bottle of norwhiskey,carrot juice,prismatic wad,agua de vida,grim fairy tale,chocolate saucepan,chocolate disco ball,distilled fortified wine,groose grease,chocolate stolen accordion,chocolate pasta spoon,chocolate turtle totem,csa cheerfulness ration,bucket of wine,powdered gold,tasty tart,ambitious turkey,ice rice,bag of qwop,nasty snuff,deviled egg,twinkly wad,glimmering roc feather,expensive champagne,hacked gibson,browser cookie,this charming flan,sacramento wine,corpse on the beach,corpsedriver,jumping horseradish,beery blood,5-hour acrimony,hatorade,angst burger,can of Impetuous Scofflaw,can of Br&uuml;talbr&auml;u,can of drooling monk,liquid bread,vibrating mushroom,hobo paste,gunpowder burrito,dinner roll,can of red minotaur,zombie,gooey paste,strange paste,Tea\, Earl Grey\, Hot,mouth-watering mayolus,watered-down Red Minotaur,knob pasty,not-a-pipe,astral pilsner,astral energy drink,astral hot dog,Crimbo Paste,elemental caipiroska,mysterious island iced tea,cute mushroom,reverse Tantalus,mer-kin paste,buzzing mushroom wine,gunner's daughter,homeopathic mint tea,R'lyeh,indescribably horrible paste,greasy paste,stinky hi mein,Gnollish sangria,pirate paste,penguin paste,essential tofu,orc paste,bloody nora,Ol' Scratch's salad fork,frosty's frosty mug,extra-greasy slider,jar of fermented pickle juice,bodyslam,cherry bomb,dirty martini,grogtini,sangria del diablo,vesper,oily paste,cosmic paste,chlorophyll paste,ectoplasmic paste,hippy paste,frozen banquet,gallon of milk,cuppa activi tea,fleetwood mac 'n' cheese,siberian sunrise,voodoo snuff, tin of submardines,beastly paste,demonic paste,elemental paste,bug paste,goblin paste,slimy paste,Purple Beast energy drink,party platter for one,blood-drive sticker,sweet party mix,white citadel burger,jar of squeeze,emergency margarita,vintage smart drink,spectral pickle,Meteorite-Ade,Meadeorite,cup of primitive beer,tankard of ale,hot mint schnocolate]; //'
+boolean [item] __consumption_no_confirm_whitelist = $items[pixel daiquiri,Go-Wassail,perfect cosmopolitan,perfect dark and stormy,perfect negroni,perfect mimosa,perfect old-fashioned,perfect paloma,pumpkin beer,Crimbojito,Feliz Navidad,Gin Mint,Mint Yulep,Sangria de Menthe,Vodka Matryoshka,antimatter wad,transdermal smoke patch,Unconscious Collective Dream Jar,paint a vulgar pitcher,gnat lasagna,snow crab,octolus oculus,chocolate seal-clubbing club,hot hi mein,cold hi mein,spooky hi mein,sleazy hi mein,Psychotic Train wine,bottle of norwhiskey,carrot juice,prismatic wad,agua de vida,grim fairy tale,chocolate saucepan,chocolate disco ball,distilled fortified wine,groose grease,chocolate stolen accordion,chocolate pasta spoon,chocolate turtle totem,csa cheerfulness ration,bucket of wine,powdered gold,tasty tart,ambitious turkey,ice rice,bag of qwop,nasty snuff,deviled egg,twinkly wad,glimmering roc feather,expensive champagne,hacked gibson,browser cookie,this charming flan,sacramento wine,corpse on the beach,corpsedriver,jumping horseradish,beery blood,5-hour acrimony,hatorade,angst burger,can of Impetuous Scofflaw,can of Br&uuml;talbr&auml;u,can of drooling monk,liquid bread,vibrating mushroom,hobo paste,gunpowder burrito,dinner roll,can of red minotaur,zombie,gooey paste,strange paste,Tea\, Earl Grey\, Hot,mouth-watering mayolus,watered-down Red Minotaur,knob pasty,not-a-pipe,astral pilsner,astral energy drink,astral hot dog,Crimbo Paste,elemental caipiroska,mysterious island iced tea,cute mushroom,reverse Tantalus,mer-kin paste,buzzing mushroom wine,gunner's daughter,homeopathic mint tea,R'lyeh,indescribably horrible paste,greasy paste,stinky hi mein,Gnollish sangria,pirate paste,penguin paste,essential tofu,orc paste,bloody nora,Ol' Scratch's salad fork,frosty's frosty mug,extra-greasy slider,jar of fermented pickle juice,bodyslam,cherry bomb,dirty martini,grogtini,sangria del diablo,vesper,oily paste,cosmic paste,chlorophyll paste,ectoplasmic paste,hippy paste,frozen banquet,gallon of milk,cuppa activi tea,fleetwood mac 'n' cheese,siberian sunrise,voodoo snuff, tin of submardines,beastly paste,demonic paste,elemental paste,bug paste,goblin paste,slimy paste,Purple Beast energy drink,party platter for one,blood-drive sticker,sweet party mix,white citadel burger,jar of squeeze,emergency margarita,vintage smart drink,spectral pickle,Meteorite-Ade,Meadeorite,cup of primitive beer,tankard of ale,hot mint schnocolate,fishy paste,meteoreo,iced plum wine,borrowed time,license to chill,etched hourglass,skeleton quiche,pumpkin pie,fishy fish lasagna]; //'
+
+boolean [item] __consumption_personal_blacklist = $items[long pork lasagna];
 
 
 //FIXME support: munchies pills, those batfellow consumes, melanges?, UMSBs? alien plant pods?
@@ -4517,6 +4580,10 @@ void computeConsumptionPlanMisc(ConsumptionPlan plan)
 		evaluating_items.listAppend(MiscItemConsumptionMake($item[brain preservation fluid], 5));
 	if (!get_property_boolean("_essentialTofuUsed"))
 		evaluating_items.listAppend(MiscItemConsumptionMake($item[essential tofu], averagef(4.0, 6.0)));
+	if (!get_property_boolean("_etchedHourglassUsed"))
+		evaluating_items.listAppend(MiscItemConsumptionMake($item[etched hourglass], 5.0));
+	if (!get_property_boolean("_licenseToChillUsed"))
+		evaluating_items.listAppend(MiscItemConsumptionMake($item[License to Chill], 5.0));
 	
 	item class_chocolate = $item[none];
 	int [int] chocolate_progression = listMake(3, 2, 1);
@@ -4581,11 +4648,16 @@ void computeConsumptionPlanMisc(ConsumptionPlan plan)
 	{
 		float revenue = consumption.adventures_given * __setting_meat_per_adventure;
 		float historical_profit = revenue - consumption.it.cost_to_acquire(true, 15.0);
+		if (consumption.it.reusable && consumption.it.available_amount() > 0)
+			historical_profit = revenue;
 		if (historical_profit < -1000) //eh
 			continue;
+		if (!consumption.it.tradeable && consumption.it.available_amount() == 0) continue;
 		if (!can_interact() && consumption.it.available_amount() + consumption.it.creatable_amount() - plan.what_to_consume[consumption.it] <= 0) continue;
 		float cost = consumption.it.cost_to_acquire();
 		float profit = revenue - cost;
+		if (consumption.it.reusable && consumption.it.available_amount() > 0)
+			profit = revenue;
 		if (profit >= 100)
 		{
 			print_html("Consuming " + consumption.it + " for +" + profit + " meat.");
@@ -4599,6 +4671,7 @@ Record SingleConsumption
 	item [int] items;
 	float average_adventures; //or pvp fights
 	float extra_cost;
+	float average_pvp_fights;
 };
 
 float SingleConsumptionRevenue(SingleConsumption consumption, float mpa)
@@ -4669,6 +4742,58 @@ SingleConsumption listGetRandomObject(SingleConsumption [int] list)
     return list[listKeyForIndex(list, random(list.count()))];
 }
 
+//2CRS replaces the notes field, which we need for pvp fights
+static
+{
+	string [item] __static_item_original_notes;
+}
+
+
+void processConsumptionFileLine(string type, string line)
+{
+	string [int] split = line.split_string("\t");
+	
+	if (split.count() == 0) return;
+	
+	item it = split[0].to_item();
+	if (it == $item[none])
+	{
+		return;
+	}
+	string last = split[split.count() - 1];
+	if (last != "")
+	{
+		__static_item_original_notes[it] = last;
+	}
+}
+void readOriginalNotes()
+{
+	if (__static_item_original_notes.count() > 0) return;
+	string [int] inebriety_file = file_to_array("inebriety.txt");
+	string [int] fullness_file = file_to_array("fullness.txt");
+	string [int] spleen_file = file_to_array("spleenhit.txt");
+	
+	foreach key, line in inebriety_file
+	{
+		processConsumptionFileLine("inebriety", line);
+	}
+	foreach key, line in fullness_file
+	{
+		processConsumptionFileLine("fullness", line);
+	}
+	foreach key, line in spleen_file
+	{
+		processConsumptionFileLine("spleen", line);
+	}
+}
+readOriginalNotes();
+
+float itemPVPFightsGiven(item it)
+{
+	if (it == $item[Meteorite-Ade])
+		return 5.0;
+	return __static_item_original_notes[it].group_string("\\+([0-9]*) PvP fight")[0][1].to_int_silent();
+}
 
 void computeConsumptionPlan(ConsumptionPlan plan)
 {
@@ -4732,6 +4857,8 @@ void computeConsumptionPlan(ConsumptionPlan plan)
 			continue;
 		if (__consumption_blacklist contains it)
 			continue;
+		if (__consumption_personal_blacklist contains it)
+			continue;
 		if (!can_interact() && it.available_amount() + it.creatable_amount() - plan.what_to_consume[it] <= 0)
 			continue;
 		if (!it.tradeable && it.available_amount() - plan.what_to_consume[it] == 0)
@@ -4758,11 +4885,11 @@ void computeConsumptionPlan(ConsumptionPlan plan)
 		consumption.items.listAppend(it);
 		float adventures_weight = 1.0;
 		float adventures_base = to_float(it.averageAdventuresForConsumable(__its_a_monday));
+		consumption.average_pvp_fights = it.itemPVPFightsGiven();
 		if (__consume_for_pvp_fights_instead)
 		{
-			adventures_base = it.notes.group_string("\\+([0-9]*) PvP fight")[0][1].to_int_silent();
+			adventures_base = consumption.average_pvp_fights;
 			//adventures_weight = 0.001;
-			
 		}
 		float forked_adventures = adventures_base * 1.3;
 		if (__consume_for_pvp_fights_instead)
@@ -5069,6 +5196,7 @@ void executeConsumptionPlan(ConsumptionPlan plan)
 				food_to_remove.listAppend(foodstuff);
 				continue;
 			}
+			//abort("add " + foodstuff + " to whitelist");
 		}
 		if (foodstuff.available_amount() < amount)
 		{
@@ -5191,26 +5319,35 @@ void executeConsumptionPlan(ConsumptionPlan plan)
 		string execution_command;
 		if (plan.type == CONSUMPTION_PLAN_TYPE_EAT)
 		{
-			int breakout = 0;
-			while (breakout < 11 && can_interact() && $effect[got milk].have_effect() < foodstuff.fullness * amount && !__consume_for_pvp_fights_instead)
+			/*int breakout = 0;
+			while (breakout < 11 && can_interact() && $effect[got milk].have_effect() < foodstuff.fullness * amount && !__consume_for_pvp_fights_instead && false)
 			{
 				cli_execute("use milk of magnesium");
 				breakout += 1;
-			}
-			execution_command = "eat";
+			}*/
+			execution_command = "eatsilent";
 		}
 		else if (plan.type == CONSUMPTION_PLAN_TYPE_DRINK)
 		{
 			if (inebriety_limit() - my_inebriety() == 0 && plan.overdrink)
 				execution_command = "overdrink";
 			else			
-				execution_command = "drink";
+				execution_command = "drinksilent";
 		}
 		else if (plan.type == CONSUMPTION_PLAN_TYPE_SPLEEN)
 			execution_command = "chew";
 		else if (plan.type == CONSUMPTION_PLAN_TYPE_MISC)
 			execution_command = "use";
 		
+		if (pvp_attacks_left() > 200)
+		{
+			float fights = foodstuff.itemPVPFightsGiven();
+			if (fights > 0 && pvp_attacks_left() + fights >= 255)
+			{
+				print("Stopping - we'll hit the pvp fight limit");
+				break;
+			}
+		}
 		
 		
 		if (execution_command != "")
