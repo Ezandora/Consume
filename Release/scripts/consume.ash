@@ -805,6 +805,15 @@ int [int] listCopy(int [int] l)
     return result;
 }
 
+item [int] listCopy(item [int] l)
+{
+    item [int] result;
+    foreach key in l
+        result[key] = l[key];
+    return result;
+}
+
+
 monster [int] listCopy(monster [int] l)
 {
     monster [int] result;
@@ -1777,6 +1786,12 @@ string [int] split_string_alternate(string source, string delimiter)
         return listMakeBlankString();
     return split_string_mutable(source, delimiter);
 }
+string [int] split_string_alternate_immutable(string source, string delimiter)
+{
+    if (source.length() == 0)
+        return listMakeBlankString();
+    return split_string(source, delimiter);
+}
 
 string slot_to_string(slot s)
 {
@@ -1813,10 +1828,17 @@ string slot_to_plural_string(slot s)
     return s.slot_to_string();
 }
 
-
 string format_today_to_string(string desired_format)
 {
     return format_date_time("yyyyMMdd", today_to_string(), desired_format);
+    //We tried this, and instead at 7:51AM local time, it claimed the day was yesterday. I don't get it either.
+    //return format_date_time("yyyyMMdd hh:mm:ss z", today_to_string() + " " + time_to_string(), desired_format);
+}
+//this messes with your timezone, because why wouldn't it?
+string format_intraday_time_to_string(string desired_format)
+{
+    //return format_date_time("hh:mm:ss z", time_to_string(), desired_format);
+    return format_date_time("hh:mm:ss", time_to_string(), desired_format); //omit time zone, because give it a time zone and suddenly it decides to be Difficult.
 }
 
 
@@ -1979,252 +2001,51 @@ This implementation is not 1:1 compatible, as it doesn't take into account your 
 //int [item] get_ingredients_fast(item it)
 
 
-static
+Record Recipe
 {
-    int [item][item] __item_ingredients;
-    boolean [item] __item_is_purchasable_from_a_store;
-}
-
-
-
-boolean parseDatafileItem(int [item] out, string item_name)
-{
-    if (item_name == "") return false;
-    
-    item it = item_name.to_item();
-    if (it != $item[none])
-    {
-        out[it] += 1;
-    }
-    else if (item_name.contains_text("("))
-    {
-        //Do complicated parsing.
-        //NOTE: "CRIMBCO Employee Handbook (chapter 1)" and "snow berries (7)" are both valid entries that mean different things.
-        string [int][int] matches = item_name.group_string("(.*?) \\(([0-9]*)\\)");
-        if (matches[0].count() == 3)
-        {
-            it = matches[0][1].to_item();
-            int amount = matches[0][2].to_int();
-            if (it != $item[none] && amount > 0)
-            {
-                out[it] += amount;
-            }
-        }
-    }
-    return true;
-}
-
-
-Record ConcoctionMapEntry
-{
-    //Only way I know how to parse this file with file_to_map. string [int] won't work, string [string] won't...
-    string craft_type;
-    string mixing_item_1;
-    string mixing_item_2;
-    string mixing_item_3;
-    string mixing_item_4;
-    string mixing_item_5;
-    string mixing_item_6;
-    string mixing_item_7;
-    string mixing_item_8;
-    string mixing_item_9;
-    string mixing_item_10;
-    string mixing_item_11;
-    string mixing_item_12;
-    string mixing_item_13;
-    string mixing_item_14;
-    string mixing_item_15;
-    string mixing_item_16;
-    string mixing_item_17;
-    string mixing_item_18;
+	item creating_item;
+	string type;
+	int [item] source_items;
+	
+	Coinmaster source_coinmaster;
+	
+	string coinmaster_row_id;
 };
 
-void parseConcoction(int [item] ingredients, ConcoctionMapEntry c)
+static
 {
-    //If this ever shows up somewhere, please understand, it's not my fault file_to_map works this way.
-    if (!parseDatafileItem(ingredients, c.mixing_item_1))
-        return;
-    if (!parseDatafileItem(ingredients, c.mixing_item_2))
-        return;
-    if (!parseDatafileItem(ingredients, c.mixing_item_3))
-        return;
-    if (!parseDatafileItem(ingredients, c.mixing_item_4))
-        return;
-    if (!parseDatafileItem(ingredients, c.mixing_item_5))
-        return;
-    if (!parseDatafileItem(ingredients, c.mixing_item_6))
-        return;
-    if (!parseDatafileItem(ingredients, c.mixing_item_7))
-        return;
-    if (!parseDatafileItem(ingredients, c.mixing_item_8))
-        return;
-    if (!parseDatafileItem(ingredients, c.mixing_item_9))
-        return;
-    if (!parseDatafileItem(ingredients, c.mixing_item_10))
-        return;
-    if (!parseDatafileItem(ingredients, c.mixing_item_11))
-        return;
-    if (!parseDatafileItem(ingredients, c.mixing_item_12))
-        return;
-    if (!parseDatafileItem(ingredients, c.mixing_item_13))
-        return;
-    if (!parseDatafileItem(ingredients, c.mixing_item_14))
-        return;
-    if (!parseDatafileItem(ingredients, c.mixing_item_15))
-        return;
-    if (!parseDatafileItem(ingredients, c.mixing_item_16))
-        return;
-    if (!parseDatafileItem(ingredients, c.mixing_item_17))
-        return;
-    if (!parseDatafileItem(ingredients, c.mixing_item_18))
-        return;
+	Recipe [item][int] __item_recipes;
+	
+    boolean [item] __item_is_purchasable_from_a_store;
+    boolean [item] __items_that_craft_food;
 }
 
-void initialiseItemIngredients()
+Recipe [int] recipes_for_item(item it)
 {
-    if (__item_ingredients.count() > 0) return;
-    
-    //Parse concoctions:
-    //Highest observed so far: 17.
-    if (true)
-    {
-        string [string, string, string, string, string, string, string, string, string, string, string, string, string, string, string, string, string, string, string] concoctions_map_2;
-        file_to_map("data/concoctions.txt", concoctions_map_2);
-        foreach crafting_thing, crafting_type, mixing_item_1, mixing_item_2, mixing_item_3, mixing_item_4, mixing_item_5, mixing_item_6, mixing_item_7, mixing_item_8, mixing_item_9, mixing_item_10, mixing_item_11, mixing_item_12, mixing_item_13, mixing_item_14, mixing_item_15, mixing_item_16, mixing_item_17, mixing_item_18 in concoctions_map_2
-        {
-            if (crafting_type == "SUSHI" || crafting_type == "VYKEA") continue; //not really items
-            if (crafting_type == "CLIPART") continue; //bucket of wine is not made of three turtle totems
-            item it = crafting_thing.to_item();
-            if (it == $item[none])
-            {
-                int [item] item_results;
-                parseDatafileItem(item_results, crafting_thing);
-                if (item_results.count() == 0)
-                {
-                    //print_html("Unknown crafting_thing " + crafting_thing);
-                    continue;
-                }
-                foreach it2 in item_results
-                    it = it2;
-            }
-            if (crafting_type.contains_text("ROW"))
-                __item_is_purchasable_from_a_store[it] = true;
-            if (__item_ingredients contains it) continue; //mafia uses first defined entry
-            
-            int [item] ingredients;
-            //Create map entry:
-            ConcoctionMapEntry c;
-            c.craft_type = crafting_type;
-            c.mixing_item_1 = mixing_item_1;
-            c.mixing_item_2 = mixing_item_2;
-            c.mixing_item_3 = mixing_item_3;
-            c.mixing_item_4 = mixing_item_4;
-            c.mixing_item_5 = mixing_item_5;
-            c.mixing_item_6 = mixing_item_6;
-            c.mixing_item_7 = mixing_item_7;
-            c.mixing_item_8 = mixing_item_8;
-            c.mixing_item_9 = mixing_item_9;
-            c.mixing_item_10 = mixing_item_10;
-            c.mixing_item_11 = mixing_item_11;
-            c.mixing_item_12 = mixing_item_12;
-            c.mixing_item_13 = mixing_item_13;
-            c.mixing_item_14 = mixing_item_14;
-            c.mixing_item_15 = mixing_item_15;
-            c.mixing_item_16 = mixing_item_16;
-            c.mixing_item_17 = mixing_item_17;
-            c.mixing_item_18 = mixing_item_18;
-            
-            parseConcoction(ingredients, c);
-            
-            if (ingredients.count() > 0)
-                __item_ingredients[it] = ingredients;
-        }
-    }
-    else
-    {
-        //Not compatible.
-        //Concoction manager seems to read the first entry, not the second. file_to_map reads the second. Example: spooky wad.
-        //Or maybe it's just random which the concoction manager uses? Example: bloody beer vs. spooky wad. Or it picks the one we can make...?
-        ConcoctionMapEntry [string] concoctions_map;
-        file_to_map("data/concoctions.txt", concoctions_map);
-        foreach crafting_thing in concoctions_map
-        {
-            ConcoctionMapEntry c = concoctions_map[crafting_thing];
-            item it = crafting_thing.to_item();
-            if (it == $item[none])
-                continue;
-            
-            int [item] ingredients;
-            
-            parseConcoction(ingredients, c);
-            
-            if (__item_ingredients contains it) continue; //mafia uses first defined entry
-            if (ingredients.count() > 0)
-                __item_ingredients[it] = ingredients;
-        }
-    }
-    //Parse coinmasters:
-    
-    /*Record CoinmastersMapEntry
-    {
-        string buy_or_sell_type;
-        int amount;
-        item it;
-        string row_id;
-    };
-    CoinmastersMapEntry [string] coinmasters_map;*/
-    string [string,string,int,string] coinmasters_map;
-    file_to_map("data/coinmasters.txt", coinmasters_map);
-    //print_html("coinmasters_map = " + coinmasters_map.to_json());
-    foreach master_name, type, amount, item_string in coinmasters_map
-    {
-        //FIXME track if coinmaster is accessible?
-        //print_html(master_name + ", " + type + ", " + amount + ", " + item_string);
-        if (type != "buy") continue;
-        coinmaster c = master_name.to_coinmaster();
-        if (c == $coinmaster[none])
-        {
-            //Hmm....
-            //print_html(master_name + " is not a coinmaster");
-            continue;
-        }
-        if (c.item == $item[none]) //bat-fabricator
-            continue;
-        item it = item_string.to_item();
-        if (it == $item[none])
-        {
-            //peppermint tailings (10) at the moment
-            //FIXME write this
-            continue;
-        }
-        
-        if (it == $item[none])
-            continue;
-        
-        __item_is_purchasable_from_a_store[it] = true;
-        if (__item_ingredients contains it) continue;
-        
-        int [item] ingredients;
-        ingredients[c.item] = amount;
-        __item_ingredients[it] = ingredients;
-    }
-    
+	return __item_recipes[it];
 }
 
+Recipe recipe_for_item(item it)
+{
+	if (__item_recipes[it].count() == 0)
+	{
+		Recipe blank;
+        return blank;
+	}
+	return __item_recipes[it][0];
+}
 
 int [item] get_ingredients_fast(item it)
 {
-    //return it.get_ingredients();
-    if (__item_ingredients.count() == 0)
-        initialiseItemIngredients();
-    if (!(__item_ingredients contains it))
-    {
-        //This is six milliseconds per call, but only if the item has an ingredient(?), so be wary:
-        int [item] ground_truth = it.get_ingredients();
-        if (ground_truth.count() > 0) //We could cache it if it's empty, except sometimes that changes.
-            __item_ingredients[it] = ground_truth;
-    }
-    return __item_ingredients[it];
+	Recipe [int] recipes = __item_recipes[it];
+	if (recipes.count() == 0)
+	{
+		//use get_ingredient?
+        //mafia appears to have various items that return get_ingredients but do not show up in the datafiles
+        int [item] mafia_response = it.get_ingredients();
+        return mafia_response;
+	}
+	return recipes[0].source_items;
 }
 
 boolean item_is_purchasable_from_a_store(item it)
@@ -2238,10 +2059,194 @@ boolean item_cannot_be_asdon_martined_because_it_was_purchased_from_a_store(item
 	return it.item_is_purchasable_from_a_store();
 }
 
+
+
+//Initialisation code, ignore:
+boolean parseDatafileItem(int [item] out, string item_name)
+{
+    if (item_name == "") return false;
+    
+    item it = item_name.to_item();
+    if (it != $item[none])
+    {
+        out[it] += 1;
+    }
+    else if (item_name.contains_text("("))
+    {
+        //Do complicated parsing.
+        //NOTE: "CRIMBCO Employee Handbook (chapter 1)" and "snow berries (7)" are both valid entries that mean different things.
+        //optional space between the item name and parenthesis because the CRIMBO12 items (BittyCar MeatCar) have no space there
+        string [int][int] matches = item_name.group_string("(.*?)[ ]*\\(([0-9]*)\\)");
+        if (matches[0].count() == 3)
+        {
+            it = matches[0][1].to_item();
+            if (it == $item[none]) return false;
+            int amount = matches[0][2].to_int();
+            if (amount > 0)
+            {
+                out[it] += amount;
+            }
+            else
+            	return false;
+        }
+    }
+    return true;
+}
+
+
+void InternalAddRecipe(Recipe r)
+{
+	if (!(__item_recipes contains r.creating_item))
+	{
+		Recipe [int] blank;
+        __item_recipes[r.creating_item] = blank;
+	}
+	__item_recipes[r.creating_item][__item_recipes[r.creating_item].count()] = r;
+	if (r.type == "COOK" || r.type == "COOK_FANCY")
+    {
+    	foreach it in r.source_items
+        	__items_that_craft_food[it] = true;
+    }
+}
+
+void InternalParseConcoctionEntry(string entry)
+{
+	string [int] split_entry = entry.split_string_alternate_immutable("\t");
+	//crafting_thing, crafting_type, mixing_item_1, mixing_item_2, mixing_item_3, mixing_item_4, mixing_item_5, mixing_item_6, mixing_item_7, mixing_item_8, mixing_item_9, mixing_item_10, mixing_item_11, mixing_item_12, mixing_item_13, mixing_item_14, mixing_item_15, mixing_item_16, mixing_item_17, mixing_item_18
+	if (split_entry.count() < 3) return;
+	Recipe r;
+	
+	r.creating_item = split_entry[0].to_item();
+	r.type = split_entry[1];
+	if (r.creating_item == $item[none])
+	{
+		//print_html("Unknown item " + split_entry[0]);
+        return;
+	}
+	for i from 2 to split_entry.count() - 1
+	{
+		string value = split_entry[i];
+		int [item] out;
+        parseDatafileItem(out, value);
+        if (out.count() > 0)
+        {
+        	foreach it, amount in out
+            {
+            	r.source_items[it] += amount;
+            }
+        }
+	}
+    if (r.type.contains_text("ROW"))
+        __item_is_purchasable_from_a_store[r.creating_item] = true;
+	
+	if (r.source_items.count() == 0)
+	{
+		//print_html(r.creating_item + " has no source items, entry is \"" + entry + "\"");
+        return;
+	}
+	InternalAddRecipe(r);
+	
+	
+	//print_html("Added " + r.creating_item + " of type " + r.type + " which requires " + r.source_items.to_json());
+}
+
+void InternalParseConcoctions()
+{
+	string [int] file_lines = file_to_array("data/concoctions.txt");
+	foreach key, entry in file_lines
+	{
+		//Note that FileUtilities.java appears to only ignore lines starting exactly with #.
+        //So that is what we will do.
+        if (entry == "") continue;
+        if (entry.char_at(0) == "#") continue;
+        InternalParseConcoctionEntry(entry);
+	}
+	
+	if (false)
+	{
+		foreach it in __item_recipes
+        {
+        	if (__item_recipes[it].count() <= 1) continue;
+            print_html(it + " has " + __item_recipes[it].count() + " recipes: " + __item_recipes[it].to_json()); 
+        }
+	}
+}
+
+void InternalParseCoinmasterEntry(string entry)
+{
+	//shop name, buy or sell, currency amount, item acquired, row
+	
+	string [int] split_entry = entry.split_string_alternate_immutable("\t");
+	if (split_entry.count() < 4) return;
+	if (split_entry[1] != "buy") return;
+	
+	Recipe r;
+	r.source_coinmaster = split_entry[0].to_coinmaster();
+	if (r.source_coinmaster == $coinmaster[none])
+	{
+		//print_html("Unknown coinmaster for " + entry);
+        return;
+	}
+	r.creating_item = split_entry[3].to_item();
+	if (r.creating_item == $item[none])
+	{
+		//print_html("Unknown item for " + entry);
+        return;
+	}
+	
+	int currency_amount = split_entry[2].to_int();
+	item store_item = r.source_coinmaster.item;
+	
+	if (store_item != $item[none])
+		r.source_items[store_item] = currency_amount;
+	
+	__item_is_purchasable_from_a_store[r.creating_item] = true;
+	
+	if (split_entry.count() >= 5)
+		r.coinmaster_row_id = split_entry[4];
+	if (r.source_items.count() == 0)
+	{
+		//print_html(r.creating_item + " has no source items, entry is \"" + entry + "\"");
+        return;
+	}
+	InternalAddRecipe(r);
+	//print_html(r.creating_item + ": " + r.to_json());
+}
+
+void InternalParseCoinmasters()
+{
+	//coinmasters.txt has improper format for actual game; it assumes a "store" currency which is not accurate, stores can have multiple currencies
+	
+	string [int] file_lines = file_to_array("data/coinmasters.txt");
+	foreach key, entry in file_lines
+	{
+        if (entry == "") continue;
+        if (entry.char_at(0) == "#") continue;
+        InternalParseCoinmasterEntry(entry);
+	}
+}
+
+
+void initialiseItemIngredients()
+{
+    if (__item_recipes.count() > 0) return;
+    
+    //Parse concoctions:
+    InternalParseConcoctions();
+    
+    //Parse coinmasters:
+    InternalParseCoinmasters();
+    
+}
+initialiseItemIngredients();
+
+
+
+
+
 void testItemIngredients()
 {
-    initialiseItemIngredients();
-    print_html(__item_ingredients.count() + " ingredients known.");
+    print_html(__item_recipes.count() + " recipes known.");
     foreach it in $items[]
     {
         int [item] ground_truth_ingredients = it.get_ingredients();
@@ -2329,17 +2334,21 @@ static
     int PATH_OF_THE_PLUMBER = 38;
     int PATH_PLUMBER = 38;
     int PATH_LUIGI = 38;
-    int PATH_MAMA_LUIGI = 38;
     int PATH_MARIO = 38;
     int PATH_LOW_KEY_SUMMER = 39;
     int PATH_LOKI = 39;
+    int PATH_GREY_GOO = 40;
+    int PATH_ROBOT = 41;
+    int PATH_QUANTUM_TERRARIUM = 42;
+    int PATH_QUANTUM = 42;
+    int PATH_WILDFIRE = 43;
 }
 
-float numeric_modifier_replacement(item it, string modifier)
+float numeric_modifier_replacement(item it, string modifier_name)
 {
-    string modifier_lowercase = modifier.to_lower_case();
+    string modifier_lowercase = modifier_name.to_lower_case();
     float additional = 0;
-    if (my_path_id() == PATH_G_LOVER && !it.contains_text("g") && !it.contains_text("G"))
+    if (my_path().id == PATH_G_LOVER && !it.contains_text("g") && !it.contains_text("G"))
     	return 0.0;
     if (it == $item[your cowboy boots])
     {
@@ -2367,7 +2376,19 @@ float numeric_modifier_replacement(item it, string modifier)
     	if (it.equipped_amount() == 0)
      	   additional += 5;
     }
-    return numeric_modifier(it, modifier) + additional;
+    if (it == $item[backup camera])
+    {
+    	string camera_mode = get_property("backupCameraMode");
+        if (modifier_lowercase == "monster level" && camera_mode == "ml")
+        {
+        	return clampi(my_level() * 3, 3, 50);
+        }
+        else if (modifier_lowercase == "meat drop" && camera_mode == "meat")
+        	return 50;
+        else if (modifier_lowercase == "initiative" && camera_mode == "init")
+        	return 100;
+    }
+    return numeric_modifier(it, modifier_name) + additional;
 }
 
 
@@ -2413,26 +2434,43 @@ static
 
 static
 {
-    boolean [item] __items_that_craft_food;
     boolean [item] __minus_combat_equipment;
     boolean [item] __equipment;
     boolean [item] __items_in_outfits;
     boolean [string][item] __equipment_by_numeric_modifier;
     void initialiseItems()
     {
+    	int maximum_item_id = 0;
         foreach it in $items[]
         {
             //Crafting:
-            string craft_type = it.craft_type();
+            //moved to ingredients.ash:
+            /*string craft_type = it.craft_type();
             if (craft_type.contains_text("Cooking"))
             {
                 foreach ingredient in it.get_ingredients_fast()
                 {
                     __items_that_craft_food[ingredient] = true;
                 }
+            }*/
+            maximum_item_id = MAX(maximum_item_id, it.to_int());
+            //Equipment:
+            if ($slots[hat,weapon,off-hand,back,shirt,pants,acc1,acc2,acc3,familiar] contains it.to_slot())
+            {
+                __equipment[it] = true;
+                if (it.numeric_modifier("combat rate") < 0)
+                    __minus_combat_equipment[it] = true;
+            }
+        }
+        //mafia does not add new items to $items, so, support some new items:
+        for i from maximum_item_id + 1 to maximum_item_id + 100
+        {
+        	item it = i.to_item();
+            if (it == $item[none])
+            {
+            	continue;
             }
             
-            //Equipment:
             if ($slots[hat,weapon,off-hand,back,shirt,pants,acc1,acc2,acc3,familiar] contains it.to_slot())
             {
                 __equipment[it] = true;
@@ -2449,30 +2487,33 @@ static
     initialiseItems();
 }
 
-boolean [item] equipmentWithNumericModifier(string modifier)
+boolean [item] equipmentWithNumericModifier(string modifier_name)
 {
-	modifier = modifier.to_lower_case();
+	modifier_name = modifier_name.to_lower_case();
+	//dynamic items here
     boolean [item] dynamic_items;
-    dynamic_items[to_item("kremlin's greatest briefcase")] = true;
+    dynamic_items[to_item("backup camera")] = true;
+    dynamic_items[to_item("unwrapped knock-off retro superhero cape")] = true;
+    dynamic_items[$item[kremlin's greatest briefcase]] = true;
     dynamic_items[$item[your cowboy boots]] = true;
     dynamic_items[$item[a light that never goes out]] = true; //FIXME all smithsness items
-    if (!(__equipment_by_numeric_modifier contains modifier))
+    if (!(__equipment_by_numeric_modifier contains modifier_name))
     {
         //Build it:
         boolean [item] blank;
-        __equipment_by_numeric_modifier[modifier] = blank;
+        __equipment_by_numeric_modifier[modifier_name] = blank;
         foreach it in __equipment
         {
             if (dynamic_items contains it) continue;
-            if (it.numeric_modifier(modifier) != 0.0)
-                __equipment_by_numeric_modifier[modifier][it] = true;
+            if (it.numeric_modifier(modifier_name) != 0.0)
+                __equipment_by_numeric_modifier[modifier_name][it] = true;
         }
     }
     //Certain equipment is dynamic. Inspect them dynamically:
     boolean [item] extra_results;
     foreach it in dynamic_items
     {
-        if (it.numeric_modifier_replacement(modifier) != 0.0)
+        if (it.numeric_modifier_replacement(modifier_name) != 0.0)
         {
             extra_results[it] = true;
         }
@@ -2481,7 +2522,7 @@ boolean [item] equipmentWithNumericModifier(string modifier)
     string secondary_modifier = "";
     foreach e in $elements[hot,cold,spooky,stench,sleaze]
     {
-        if (modifier == e + " damage")
+        if (modifier_name == e + " damage")
             secondary_modifier = e + " spell damage";
     }
     if (secondary_modifier != "")
@@ -2491,11 +2532,11 @@ boolean [item] equipmentWithNumericModifier(string modifier)
     }
     
     if (extra_results.count() == 0)
-        return __equipment_by_numeric_modifier[modifier];
+        return __equipment_by_numeric_modifier[modifier_name];
     else
     {
         //Add extras:
-        foreach it in __equipment_by_numeric_modifier[modifier]
+        foreach it in __equipment_by_numeric_modifier[modifier_name]
         {
             extra_results[it] = true;
         }
@@ -2584,7 +2625,7 @@ boolean mafiaIsPastRevision(int revision_number)
 boolean have_familiar_replacement(familiar f)
 {
     //have_familiar bugs in avatar of sneaky pete for now, so:
-    if (my_path_id() == PATH_AVATAR_OF_BORIS || my_path_id() == PATH_AVATAR_OF_JARLSBERG || my_path_id() == PATH_AVATAR_OF_SNEAKY_PETE)
+    if (my_path().id == PATH_AVATAR_OF_BORIS || my_path().id == PATH_AVATAR_OF_JARLSBERG || my_path().id == PATH_AVATAR_OF_SNEAKY_PETE)
         return false;
     return f.have_familiar();
 }
@@ -2593,11 +2634,11 @@ boolean have_familiar_replacement(familiar f)
 boolean familiar_is_usable(familiar f)
 {
     //r13998 has most of these
-    if (my_path_id() == PATH_AVATAR_OF_BORIS || my_path_id() == PATH_AVATAR_OF_JARLSBERG || my_path_id() == PATH_AVATAR_OF_SNEAKY_PETE || my_path_id() == PATH_ACTUALLY_ED_THE_UNDYING || my_path_id() == PATH_LICENSE_TO_ADVENTURE || my_path_id() == PATH_POCKET_FAMILIARS || my_path_id() == PATH_VAMPIRE)
+    if (my_path().id == PATH_AVATAR_OF_BORIS || my_path().id == PATH_AVATAR_OF_JARLSBERG || my_path().id == PATH_AVATAR_OF_SNEAKY_PETE || my_path().id == PATH_ACTUALLY_ED_THE_UNDYING || my_path().id == PATH_LICENSE_TO_ADVENTURE || my_path().id == PATH_POCKET_FAMILIARS || my_path().id == PATH_VAMPIRE)
         return false;
     if (!is_unrestricted(f))
         return false;
-    if (my_path_id() == PATH_G_LOVER && !f.contains_text("g") && !f.contains_text("G"))
+    if (my_path().id == PATH_G_LOVER && !f.contains_text("g") && !f.contains_text("G"))
         return false;
     //On second thought, this is terrible:
 	/*int single_familiar_run = get_property_int("singleFamiliarRun");
@@ -2607,12 +2648,12 @@ boolean familiar_is_usable(familiar f)
 			return true;
 		return false;
 	}*/
-	if (my_path_id() == PATH_TRENDY)
+	if (my_path().id == PATH_TRENDY)
 	{
 		if (!is_trendy(f))
 			return false;
 	}
-	else if (my_path_id() == PATH_BEES_HATE_YOU)
+	else if (my_path().id == PATH_BEES_HATE_YOU)
 	{
 		if (f.to_string().contains_text("b") || f.to_string().contains_text("B")) //bzzzz!
 			return false; //so not green
@@ -2627,7 +2668,7 @@ boolean skill_is_usable(skill s)
         return false;
     if (!s.is_unrestricted())
         return false;
-    if (my_path_id() == PATH_G_LOVER && (!s.passive || s == $skill[meteor lore]) && !s.contains_text("g") && !s.contains_text("G"))
+    if (my_path().id == PATH_G_LOVER && (!s.passive || s == $skill[meteor lore]) && !s.contains_text("g") && !s.contains_text("G"))
     	return false;
     if ($skills[rapid prototyping] contains s)
         return $item[hand turkey outline].is_unrestricted();
@@ -2657,9 +2698,9 @@ boolean item_is_usable(item it)
 {
     if (!it.is_unrestricted())
         return false;
-    if (my_path_id() == PATH_G_LOVER && !it.contains_text("g") && !it.contains_text("G"))
+    if (my_path().id == PATH_G_LOVER && !it.contains_text("g") && !it.contains_text("G"))
         return false;
-    if (my_path_id() == PATH_BEES_HATE_YOU && (it.contains_text("b") || it.contains_text("B")))
+    if (my_path().id == PATH_BEES_HATE_YOU && (it.contains_text("b") || it.contains_text("B")))
     	return false;
 	return true;
 }
@@ -2673,7 +2714,7 @@ int usable_amount(item it)
 
 boolean effect_is_usable(effect e)
 {
-    if (my_path_id() == PATH_G_LOVER && !e.contains_text("g") && !e.contains_text("G"))
+    if (my_path().id == PATH_G_LOVER && !e.contains_text("g") && !e.contains_text("G"))
         return false;
     return true;
 }
@@ -2951,7 +2992,7 @@ int substatsForLevel(int level)
 int availableFullness()
 {
 	int limit = fullness_limit();
-    if (my_path_id() == PATH_ACTUALLY_ED_THE_UNDYING && limit == 0 && $skill[Replacement Stomach].have_skill())
+    if (my_path().id == PATH_ACTUALLY_ED_THE_UNDYING && limit == 0 && $skill[Replacement Stomach].have_skill())
     {
         limit += 5;
     }
@@ -2961,7 +3002,7 @@ int availableFullness()
 int availableDrunkenness()
 {
     int limit = inebriety_limit();
-    if (my_path_id() == PATH_ACTUALLY_ED_THE_UNDYING && limit == 0 && $skill[Replacement Liver].have_skill())
+    if (my_path().id == PATH_ACTUALLY_ED_THE_UNDYING && limit == 0 && $skill[Replacement Liver].have_skill())
     {
     	limit += 5;
     }
@@ -2972,7 +3013,7 @@ int availableDrunkenness()
 int availableSpleen()
 {
 	int limit = spleen_limit();
-	if (my_path_id() == PATH_ACTUALLY_ED_THE_UNDYING && limit == 0)
+	if (my_path().id == PATH_ACTUALLY_ED_THE_UNDYING && limit == 0)
 	{
         limit += 5; //always true
 		//mafia resets the limits to zero in the underworld because it does, so anti-mafia:
@@ -3450,17 +3491,17 @@ float initiative_modifier_ignoring_plants()
 
 float item_drop_modifier_ignoring_plants()
 {
-    float modifier = item_drop_modifier();
+    float modifier_value = item_drop_modifier();
     
     location my_location = my_location();
     if (my_location != $location[none])
     {
         if (my_location.locationHasPlant("Rutabeggar") || my_location.locationHasPlant("Stealing Magnolia"))
-            modifier -= 25.0;
+            modifier_value -= 25.0;
         if (my_location.locationHasPlant("Kelptomaniac"))
-            modifier -= 40.0;
+            modifier_value -= 40.0;
     }
-    return modifier;
+    return modifier_value;
 }
 
 int monster_level_adjustment_ignoring_plants() //this is unsafe to use in heavy rains
@@ -3529,7 +3570,7 @@ int monster_level_adjustment_for_location(location l)
         ml += 30;
     }
     
-    if (my_path_id() == PATH_HEAVY_RAINS)
+    if (my_path().id == PATH_HEAVY_RAINS)
     {
         //complicated:
         //First, cancel out the my_location() rain:
@@ -3619,6 +3660,14 @@ boolean weapon_is_club(item it)
     return false;
 }
 
+boolean weapon_is_sword(item it)
+{
+    if (it.to_slot() != $slot[weapon]) return false;
+    if (it.item_type() == "sword" && $effect[Iron Palms].have_effect() == 0)
+        return true;
+    return false;
+}
+
 buffer prepend(buffer in_buffer, buffer value)
 {
     buffer result;
@@ -3654,14 +3703,7 @@ int XiblaxianHoloWristPuterTurnsUntilNextItem()
     int progress = get_property_int("_holoWristProgress");
     
     //_holoWristProgress resets when drop happens
-    if (!mafiaIsPastRevision(15148))
-        return -1;
     int next_turn_hit = 5 * (drops + 1) + 6;
-    if (!mafiaIsPastRevision(15493)) //old behaviour
-    {
-        if (drops != 0)
-            next_turn_hit += 1;
-    }
     return MAX(0, next_turn_hit - progress);
 }
 
@@ -3751,6 +3793,16 @@ int nextLibramSummonMPCost()
     return libram_mp_cost;
 }
 
+int maximumSimultaneous1hWeaponsEquippable()
+{
+    int weapon_maximum = 1;
+    if ($skill[double-fisted skull smashing].skill_is_usable())
+        weapon_maximum += 1;
+    if (my_familiar() == $familiar[disembodied hand])
+        weapon_maximum += 1;
+    return weapon_maximum;
+}
+
 int equippable_amount(item it)
 {
     if (!it.can_equip()) return it.equipped_amount();
@@ -3759,12 +3811,7 @@ int equippable_amount(item it)
         return MIN(3, it.available_amount());
     if (it.to_slot() == $slot[weapon] && it.weapon_hands() == 1)
     {
-        int weapon_maximum = 1;
-        if ($skill[double-fisted skull smashing].skill_is_usable())
-            weapon_maximum += 1;
-        if (my_familiar() == $familiar[disembodied hand])
-            weapon_maximum += 1;
-        return MIN(weapon_maximum, it.available_amount());
+        return MIN(maximumSimultaneous1hWeaponsEquippable(), it.available_amount());
     }
     return 1;
 }
@@ -3808,11 +3855,17 @@ item [int] generateEquipmentForExtraExperienceOnStat(stat desired_stat, boolean 
     foreach it in equipmentWithNumericModifier(numeric_modifier_string)
     {
     	slot s = it.to_slot();
-        if (s == $slot[shirt] && !(to_skill("Torso Awareness").have_skill() || $skill[Best Dressed].have_skill()))
+        if (s == $slot[shirt] && !(lookupSkill("Torso Awareness").have_skill() || $skill[Best Dressed].have_skill()))
+        	continue;
+        if (s == $slot[weapon] && it.weapon_hands() > 1 && item_slots[$slot[off-hand]] != $item[none]) //can't equip an off-hand and a two-handed weapon
         	continue;
         if (it.available_amount() > 0 && (!require_can_equip_currently || it.can_equip()) && item_slots[it.to_slot()].numeric_modifier(numeric_modifier_string) < it.numeric_modifier(numeric_modifier_string))
         {
             item_slots[it.to_slot()] = it;
+            if (s == $slot[weapon] && it.weapon_hands() > 1)
+            {
+                item_slots[$slot[off-hand]] = it;
+            }
         }
     }
     
@@ -3850,7 +3903,7 @@ float averageAdventuresForConsumable(item it, boolean assume_monday)
 			continue;
 		adventures += a * (1.0 / to_float(adventures_string.count()));
 	}
-    if (it == lookupItem("affirmation cookie"))
+    if (it == $item[affirmation cookie])
         adventures += 3;
     if (it == $item[White Citadel burger])
     {
@@ -3914,7 +3967,7 @@ boolean monsterIsGhost(monster m)
         return true;
     if ($monsters[boneless blobghost,the ghost of Vanillica \"Trashblossom\" Gorton,restless ghost,The Icewoman,the ghost of Monsieur Baguelle,The ghost of Lord Montague Spookyraven,The Headless Horseman,The ghost of Ebenoozer Screege,The ghost of Sam McGee,The ghost of Richard Cockingham,The ghost of Jim Unfortunato,The ghost of Waldo the Carpathian,the ghost of Oily McBindle] contains m)
         return true;
-    if (lookupMonster("Emily Koops, a spooky lime") == m)
+    if ($monster[Emily Koops, a spooky lime] == m)
         return true;*/
     return false;
 }
@@ -3991,8 +4044,8 @@ boolean monster_has_zero_turn_cost(monster m)
 {
     if (m.attributes.contains_text("FREE"))
         return true;
-    if (m == lookupMonster("sausage goblin") && m != $monster[none]) return true;
-    if (lookupMonsters("LOV Engineer,LOV Enforcer,LOV Equivocator") contains m) return true;
+    if (m == $monster[sausage goblin] && m != $monster[none]) return true;
+    if ($monsters[LOV Engineer,LOV Enforcer,LOV Equivocator] contains m) return true;
         
     if ($monsters[lynyrd] contains m) return true; //not marked as FREE in attributes
     //if ($monsters[Black Crayon Beast,Black Crayon Beetle,Black Crayon Constellation,Black Crayon Golem,Black Crayon Demon,Black Crayon Man,Black Crayon Elemental,Black Crayon Crimbo Elf,Black Crayon Fish,Black Crayon Goblin,Black Crayon Hippy,Black Crayon Hobo,Black Crayon Shambling Monstrosity,Black Crayon Manloid,Black Crayon Mer-kin,Black Crayon Frat Orc,Black Crayon Penguin,Black Crayon Pirate,Black Crayon Flower,Black Crayon Slime,Black Crayon Undead Thing,Black Crayon Spiraling Shape,broodling seal,Centurion of Sparky,heat seal,hermetic seal,navy seal,Servant of Grodstank,shadow of Black Bubbles,Spawn of Wally,watertight seal,wet seal,lynyrd,BRICKO airship,BRICKO bat,BRICKO cathedral,BRICKO elephant,BRICKO gargantuchicken,BRICKO octopus,BRICKO ooze,BRICKO oyster,BRICKO python,BRICKO turtle,BRICKO vacuum cleaner,Witchess Bishop,Witchess King,Witchess Knight,Witchess Ox,Witchess Pawn,Witchess Queen,Witchess Rook,Witchess Witch,The ghost of Ebenoozer Screege,The ghost of Lord Montague Spookyraven,The ghost of Waldo the Carpathian,The Icewoman,The ghost of Jim Unfortunato,the ghost of Sam McGee,the ghost of Monsieur Baguelle,the ghost of Vanillica "Trashblossom" Gorton,the ghost of Oily McBindle,boneless blobghost,The ghost of Richard Cockingham,The Headless Horseman,Emily Koops\, a spooky lime,time-spinner prank,random scenester,angry bassist,blue-haired girl,evil ex-girlfriend,peeved roommate] contains m)
@@ -4001,7 +4054,13 @@ boolean monster_has_zero_turn_cost(monster m)
         return true;
     if (my_familiar() == $familiar[machine elf] && my_location() == $location[the deep machine tunnels] && get_property_int("_machineTunnelsAdv") < 5)
         return true;
-    if (lookupMonsters("terrible mutant,slime blob,government bureaucrat,angry ghost,annoyed snake") contains m && get_property_int("_voteFreeFights") < 3)
+    if ($monsters[terrible mutant,slime blob,government bureaucrat,angry ghost,annoyed snake] contains m && get_property_int("_voteFreeFights") < 3)
+    	return true;
+    if (lookupMonsters("void guy,void slab,void spider") contains m && get_property_int("_voidFreeFights") < 5)
+    	return true;
+    if ($monsters[biker,burnout,jock,party girl,"plain" girl] contains m && get_property_int("_neverendingPartyFreeTurns") < 10)
+    	return true;
+    if (m == $monster[piranha plant]) //may or may not be location-specific?
     	return true;
     return false;
 }
@@ -4230,6 +4289,126 @@ boolean canAccessMall()
 	return true;
 }
 
+string generateEquipmentLink(item equipment)
+{
+	if (!equipment.have()) return "";
+	if (equipment.equipped()) return "inventory.php?which=2";
+	
+	string ftext_value = equipment.replace_string(" ", "+").entity_encode();
+	if (equipment.item_amount() == 0 && can_interact() && equipment.storage_amount() > 0) return "storage.php?which=2&ftext=" + ftext_value;
+	return "inventory.php?which=2&ftext=" + ftext_value;
+}
+
+//it says "next NC will be" but it means, extremely specifically, a certain class of non-combats. I don't know how this skill interacts with superlikelies or those intro adventures and such
+boolean locationNextNCWillBeCartography(location l)
+{
+    if (!lookupSkill("Comprehensive Cartography").skill_is_usable()) return false;
+    
+    //We use the following method to determine if cartography will fire:
+    //We look for "relevant" NC names in recent noncombats in the zone. If any of the relevant NCs are there, then it won't happen.
+    //The relevant NCs are the cartography NC, and the NCs it "replaces"
+    //This can fail, if there is five outside-zone data points in noncombat_queue - which I think can happen sometimes?
+    boolean [string] relevant_nc_names;
+ 
+	//manually handle every NC:
+    if (l == $location[Guano Junction]) //100%
+    {
+        relevant_nc_names = $strings[The Hidden Junction];
+    }
+    else if (l == $location[A-boo Peak]) //...unknown? 100%?
+    {
+        relevant_nc_names = $strings[Ghostly Memories];
+    }
+    else if (l == $location[the haunted billiards room]) //not 100%
+    {
+        relevant_nc_names = $strings[Billiards Room Options,That's your cue,Welcome To Our ool Table];
+    }
+    else if (l == $location[The Dark Neck of the Woods]) //not 100%
+    {
+        relevant_nc_names = $strings[Your Neck of the Woods,How Do We Do It? Quaint and Curious Volume!,Strike One!,Olive My Love To You\, Oh.,Dodecahedrariffic!];
+    }
+    else if (l == $location[The Defiled Nook]) //not 100%
+    {
+        relevant_nc_names = $strings[No Nook Unknown,Skull\, Skull\, Skull];
+    }
+    else if (l == $location[The Castle in the Clouds in the Sky (Top Floor)]) //not 100%
+    {
+        relevant_nc_names = $strings[Here There Be Giants,Copper Feel,Melon Collie and the Infinite Lameness,Yeah\, You're for Me\, Punk Rock Giant,Flavor of a Raver];
+    }
+    else if (l == $location[A Mob of Zeppelin Protesters]) //not 100%
+    {
+        relevant_nc_names = $strings[Mob Maptality,Bench Warrant,Fire Up Above,This Looks Like a Good Bush for an Ambush];
+    }
+    else if (l == $location[Frat House]) //not 100%. FIXME correct zone?
+    {
+        relevant_nc_names = $strings[Oh Yeah!,Purple Hazers,From Stoked to Smoked,Murder by Death,Sing This Explosion to Me]; //is this correct...?
+    }
+    else if (l == $location[Wartime Frat House (Hippy Disguise)]) //not 100%. FIXME correct zone?
+    {
+        relevant_nc_names = $strings[Sneaky\, Sneaky,Catching Some Zetas,Fratacombs,One Less Room Than In That Movie];
+    }
+    else if (l == $location[Wartime Hippy Camp (Frat Disguise)]) //not 100%. FIXME correct zone?
+    {
+        relevant_nc_names = $strings[Sneaky\, Sneaky,Bait and Switch,Blockin' Out the Scenery,The Thin Tie-Dyed Line];
+    }
+    
+    if (relevant_nc_names.count() == 0) return false;
+    
+    
+    foreach key, noncombat_name in l.locationSeenNoncombats()
+    {
+        if (relevant_nc_names[noncombat_name]) return false;
+    }
+    return true;
+}
+
+string getBasicItemDescription(item it)
+{
+	buffer out;
+	
+	string item_type = it.item_type();
+	
+	//if (item_type == "accessory") item_type = "acc";
+	if (item_type == "container") item_type = "back";
+	int weapon_hands = it.weapon_hands();
+	
+	if (weapon_hands != 0)
+	{
+        stat weapon_type = it.weapon_type();
+        
+		out.append(weapon_hands);
+        out.append("h ");
+        if (weapon_type == $stat[moxie])
+        	out.append("ranged ");
+        else
+        	out.append("melee ");
+	}
+	
+	out.append(item_type);
+	return out.to_string();
+}
+
+boolean monsterCanBeCopied(monster m)
+{
+	if (!m.copyable) return false;
+	if (m.boss) return false;
+	if ($monsters[writing desk,dirty thieving brigand] contains m) return false; //manual override list
+	return true;
+}
+
+boolean locationIsGoneFromTheGame(location l)
+{
+	if (l.parent == "Removed") return true;
+	
+	return false;
+}
+boolean locationIsEventSpecific(location l)
+{
+	if (l.zone == "Twitch" || l.zone == "Events") return true;
+	
+	return false;
+}
+
 int [item] __cost_to_acquire_override;
 void set_cost_to_acquire_override(item it, int override_value)
 {
@@ -4367,8 +4546,28 @@ ArchivedEquipment ArchiveEquipment()
 void RestoreArchivedEquipment(ArchivedEquipment ae)
 {
 	use_familiar(ae.previous_familiar);
+	
+	boolean skip_offhand_if_weapon = false;
+	if (ae.previous_equipment contains $slot[weapon])
+	{
+		slot s = $slot[weapon];
+		item it = ae.previous_equipment[s];
+		if (s.equipped_item() != it)
+		{
+			if (it.available_amount() > 0)
+				equip(s, it);
+			else if (it == $item[none])
+				equip(s, it);
+		}
+		if (s.equipped_item() != it)
+		{
+			skip_offhand_if_weapon = true;
+		}
+	}
 	foreach s, it in ae.previous_equipment
 	{
+		if (s == $slot[weapon]) continue;
+		if (skip_offhand_if_weapon && s == $slot[off-hand] && it.to_slot() == $slot[weapon]) continue; //something went wrong, skip
 		if (s.equipped_item() != it)
 		{
 			if (it.available_amount() > 0)
@@ -4454,16 +4653,16 @@ void castOde(int min_turns)
 }
 
 //Use "consume.ash help" to see commands.
-string __consumption_version = "1.0.6";
+string __consumption_version = "1.0.7";
 
 boolean __setting_avoid_nontradeables = true; //if you disable this, you're on your own - script has no real idea how to score a non-tradeable item
 float __setting_meat_per_adventure = get_property("valueOfAdventure").to_int();
 boolean __setting_confirm_unknown_consumables = (my_id() == 1557284);
 //stuff that's rare and expensive, or difficult to acquire, for safety:
-boolean [item] __consumption_blacklist = $items[Pan-Dimensional Gargle Blaster,Ralph IX cognac,breaded beer,cranberry schnapps,marshmallow flamb&eacute;,soy cordial,Spasmi Dolorosi Del Rene Champagne,Acqua Del Piatto Merlot,Acque Luride Grezze Cabernet,Uovo Marcio Shiraz,Maiali Sifilitici Pinot Noir,Ferita Del Petto Zinfandel,Grimacite Bock,Cinco Mayo Lager,Jeppson's Malort,bottle of Bloodweiser,Flivver,Dinsey Whinskey,instant karma,Breathetastic&trade; Premium Canned Air,sandwich of the gods,spaghetti breakfast,grue egg omelette,enchanted leopard-print barbell,liquid shifting time weirdness,unidentified drink,jerky coins]; //'
+boolean [item] __consumption_blacklist = $items[Pan-Dimensional Gargle Blaster,Ralph IX cognac,breaded beer,cranberry schnapps,marshmallow flamb&eacute;,soy cordial,Spasmi Dolorosi Del Rene Champagne,Acqua Del Piatto Merlot,Acque Luride Grezze Cabernet,Uovo Marcio Shiraz,Maiali Sifilitici Pinot Noir,Ferita Del Petto Zinfandel,Grimacite Bock,Cinco Mayo Lager,Jeppson's Malort,bottle of Bloodweiser,Flivver,Dinsey Whinskey,instant karma,Breathetastic&trade; Premium Canned Air,sandwich of the gods,spaghetti breakfast,grue egg omelette,enchanted leopard-print barbell,liquid shifting time weirdness,unidentified drink,jerky coins,handful of Smithereens,stuffed red and green pepper (stale),affirmation cookie]; //'
 
 //my personal use:
-boolean [item] __consumption_no_confirm_whitelist = $items[pixel daiquiri,Go-Wassail,perfect cosmopolitan,perfect dark and stormy,perfect negroni,perfect mimosa,perfect old-fashioned,perfect paloma,pumpkin beer,Crimbojito,Feliz Navidad,Gin Mint,Mint Yulep,Sangria de Menthe,Vodka Matryoshka,antimatter wad,transdermal smoke patch,Unconscious Collective Dream Jar,paint a vulgar pitcher,gnat lasagna,snow crab,octolus oculus,chocolate seal-clubbing club,hot hi mein,cold hi mein,spooky hi mein,sleazy hi mein,Psychotic Train wine,bottle of norwhiskey,carrot juice,prismatic wad,agua de vida,grim fairy tale,chocolate saucepan,chocolate disco ball,distilled fortified wine,groose grease,chocolate stolen accordion,chocolate pasta spoon,chocolate turtle totem,csa cheerfulness ration,bucket of wine,powdered gold,tasty tart,ambitious turkey,ice rice,bag of qwop,nasty snuff,deviled egg,twinkly wad,glimmering roc feather,expensive champagne,hacked gibson,browser cookie,this charming flan,sacramento wine,corpse on the beach,corpsedriver,jumping horseradish,beery blood,5-hour acrimony,hatorade,angst burger,can of Impetuous Scofflaw,can of Br&uuml;talbr&auml;u,can of drooling monk,liquid bread,vibrating mushroom,hobo paste,gunpowder burrito,dinner roll,can of red minotaur,zombie,gooey paste,strange paste,Tea\, Earl Grey\, Hot,mouth-watering mayolus,watered-down Red Minotaur,knob pasty,not-a-pipe,astral pilsner,astral energy drink,astral hot dog,Crimbo Paste,elemental caipiroska,mysterious island iced tea,cute mushroom,reverse Tantalus,mer-kin paste,buzzing mushroom wine,gunner's daughter,homeopathic mint tea,R'lyeh,indescribably horrible paste,greasy paste,stinky hi mein,Gnollish sangria,pirate paste,penguin paste,essential tofu,orc paste,bloody nora,Ol' Scratch's salad fork,frosty's frosty mug,extra-greasy slider,jar of fermented pickle juice,bodyslam,cherry bomb,dirty martini,grogtini,sangria del diablo,vesper,oily paste,cosmic paste,chlorophyll paste,ectoplasmic paste,hippy paste,frozen banquet,gallon of milk,cuppa activi tea,fleetwood mac 'n' cheese,siberian sunrise,voodoo snuff, tin of submardines,beastly paste,demonic paste,elemental paste,bug paste,goblin paste,slimy paste,Purple Beast energy drink,party platter for one,blood-drive sticker,sweet party mix,white citadel burger,jar of squeeze,emergency margarita,vintage smart drink,spectral pickle,Meteorite-Ade,Meadeorite,cup of primitive beer,tankard of ale,hot mint schnocolate,fishy paste,meteoreo,iced plum wine,borrowed time,license to chill,etched hourglass,skeleton quiche,pumpkin pie,fishy fish lasagna]; //'
+boolean [item] __consumption_no_confirm_whitelist = $items[pixel daiquiri,Go-Wassail,perfect cosmopolitan,perfect dark and stormy,perfect negroni,perfect mimosa,perfect old-fashioned,perfect paloma,pumpkin beer,Crimbojito,Feliz Navidad,Gin Mint,Mint Yulep,Sangria de Menthe,Vodka Matryoshka,antimatter wad,transdermal smoke patch,Unconscious Collective Dream Jar,paint a vulgar pitcher,gnat lasagna,snow crab,octolus oculus,chocolate seal-clubbing club,hot hi mein,cold hi mein,spooky hi mein,sleazy hi mein,Psychotic Train wine,bottle of norwhiskey,carrot juice,prismatic wad,agua de vida,grim fairy tale,chocolate saucepan,chocolate disco ball,distilled fortified wine,groose grease,chocolate stolen accordion,chocolate pasta spoon,chocolate turtle totem,csa cheerfulness ration,bucket of wine,powdered gold,tasty tart,ambitious turkey,ice rice,bag of qwop,nasty snuff,deviled egg,twinkly wad,glimmering roc feather,expensive champagne,hacked gibson,browser cookie,this charming flan,sacramento wine,corpse on the beach,corpsedriver,jumping horseradish,beery blood,5-hour acrimony,hatorade,angst burger,can of Impetuous Scofflaw,can of Br&uuml;talbr&auml;u,can of drooling monk,liquid bread,vibrating mushroom,hobo paste,gunpowder burrito,dinner roll,can of red minotaur,zombie,gooey paste,strange paste,Tea\, Earl Grey\, Hot,mouth-watering mayolus,watered-down Red Minotaur,knob pasty,not-a-pipe,astral pilsner,astral hot dog,Crimbo Paste,elemental caipiroska,mysterious island iced tea,cute mushroom,reverse Tantalus,mer-kin paste,buzzing mushroom wine,gunner's daughter,homeopathic mint tea,R'lyeh,indescribably horrible paste,greasy paste,stinky hi mein,Gnollish sangria,pirate paste,penguin paste,essential tofu,orc paste,bloody nora,Ol' Scratch's salad fork,frosty's frosty mug,extra-greasy slider,jar of fermented pickle juice,bodyslam,cherry bomb,dirty martini,grogtini,sangria del diablo,vesper,oily paste,cosmic paste,chlorophyll paste,ectoplasmic paste,hippy paste,frozen banquet,gallon of milk,cuppa activi tea,fleetwood mac 'n' cheese,siberian sunrise,voodoo snuff, tin of submardines,beastly paste,demonic paste,elemental paste,bug paste,goblin paste,slimy paste,Purple Beast energy drink,party platter for one,blood-drive sticker,sweet party mix,white citadel burger,jar of squeeze,emergency margarita,vintage smart drink,spectral pickle,Meteorite-Ade,Meadeorite,cup of primitive beer,tankard of ale,hot mint schnocolate,fishy paste,meteoreo,iced plum wine,borrowed time,license to chill,etched hourglass,skeleton quiche,pumpkin pie,fishy fish lasagna,bowl of maggots,bowl full of jelly,tin cup of mulligan stew,hodgman's blanket,pixel lemon]; //'
 
 boolean [item] __consumption_personal_blacklist = $items[long pork lasagna];
 
@@ -4500,6 +4699,7 @@ boolean __allow_food = true;
 boolean __allow_drink = true;
 boolean __allow_spleen = true;
 boolean __simulate_only = false;
+boolean __test_run = false;
 
 boolean [item] __consumption_wines = $items[Bartles and BRAAAINS wine cooler,Beignet Milgranet,Bilge wine,Blackfly Chardonnay,Blood-red mushroom wine,Bordeaux Marteaux,Bottle of cooking sherry,Bottle of fruity &quot;wine&quot;,Bottle of laundry sherry,Bottle of Pinot Renoir,Bottle of realpagne,Bottle of wine,Boxed champagne,Bucket of wine,Buzzing mushroom wine,Canteen of wine,Carrot claret,Complex mushroom wine,Cool mushroom wine,CRIMBCO wine,Cruelty-free wine,Dusty bottle of Marsala,Dusty bottle of Merlot,Dusty bottle of Muscat,Dusty bottle of Pinot Noir,Dusty bottle of Port,Dusty bottle of Zinfandel,Expensive champagne,Flaming mushroom wine,Flask of port,Flat mushroom wine,Flute of flat champagne,Fromage Pinotage,Gingerbread wine,Gloomy mushroom wine,High-end ginger wine,Icy mushroom wine,Knob mushroom wine,Knoll mushroom wine,Lumineux Limnio,Magnum of fancy champagne,Mid-level medieval mead,Missing wine,Morto Moreto,Mulled berry wine,Muschat,Oily mushroom wine,Overpowering mushroom wine,Plum wine,Pointy mushroom wine,Psychotic Train wine,Red red wine,Sacramento wine,Smooth mushroom wine,Space port,Spooky mushroom wine,Stinky mushroom wine,Supernova Champagne,Swirling mushroom wine,Temps Tempranillo,Thistle wine,Warbear bearserker mead,Warbear blizzard mead,Warbear feasting mead,White wine,Ye Olde Meade];
 
@@ -4529,6 +4729,7 @@ Record ConsumptionPlan
 	int [item] what_to_consume;
 	item [int] consume_order;
 	int [item] what_to_acquire_first;
+	int [item] price_limit_for_items;
 };
 
 int itemConsumptionSizeForPlanType(item it, int plan_type)
@@ -4656,12 +4857,20 @@ void computeConsumptionPlanMisc(ConsumptionPlan plan)
 		if (!can_interact() && consumption.it.available_amount() + consumption.it.creatable_amount() - plan.what_to_consume[consumption.it] <= 0) continue;
 		float cost = consumption.it.cost_to_acquire();
 		float profit = revenue - cost;
+		if (consumption.it.tradeable && consumption.it.mall_price() < 0)
+		{
+			continue;
+		}
 		if (consumption.it.reusable && consumption.it.available_amount() > 0)
+		{
 			profit = revenue;
+			cost = 0;
+		}
 		if (profit >= 100)
 		{
 			print_html("Consuming " + consumption.it + " for +" + profit + " meat.");
 			plan.what_to_consume[consumption.it] += 1;
+			plan.price_limit_for_items[consumption.it] = cost;
 		}
 	}
 }
@@ -4769,9 +4978,9 @@ void processConsumptionFileLine(string type, string line)
 void readOriginalNotes()
 {
 	if (__static_item_original_notes.count() > 0) return;
-	string [int] inebriety_file = file_to_array("inebriety.txt");
-	string [int] fullness_file = file_to_array("fullness.txt");
-	string [int] spleen_file = file_to_array("spleenhit.txt");
+	string [int] inebriety_file = file_to_array("data/inebriety.txt");
+	string [int] fullness_file = file_to_array("data/fullness.txt");
+	string [int] spleen_file = file_to_array("data/spleenhit.txt");
 	
 	foreach key, line in inebriety_file
 	{
@@ -4823,7 +5032,8 @@ void computeConsumptionPlan(ConsumptionPlan plan)
 	SingleConsumption [int] candidates;
 	
 	boolean overdrinking = false;
-	if (plan.room_left < 0 && plan.type == CONSUMPTION_PLAN_TYPE_DRINK)
+	//if (plan.room_left < 0 && plan.type == CONSUMPTION_PLAN_TYPE_DRINK)
+	if (plan.overdrink && plan.type == CONSUMPTION_PLAN_TYPE_DRINK && plan.room_left <= 0)
 		overdrinking = true;
 	int maximum_turns_of_ode_to_booze = $effect[ode to booze].have_effect();
 	if ($skill[the ode to booze].have_skill())
@@ -4867,18 +5077,18 @@ void computeConsumptionPlan(ConsumptionPlan plan)
 			continue;
 		if (it.levelreq > my_level() || (it.levelreq >= 13 && !can_interact()))
 			continue;
-		if (it.notes.contains_text("Vampyre") && my_path_id() != PATH_VAMPIRE)
+		if (it.notes.contains_text("Vampyre") && my_path().id != PATH_VAMPIRE)
 			continue;
-		if (my_path_id() == PATH_VAMPIRE && (it.fullness > 0 || it.inebriety > 0) && !it.notes.contains_text("Vampyre"))
+		if (my_path().id == PATH_VAMPIRE && (it.fullness > 0 || it.inebriety > 0) && !it.notes.contains_text("Vampyre"))
 		{
 			continue;
 		}
 		//if (it.historical_price() > 1000000)
 			//continue;
 		int cost_to_acquire = it.cost_to_acquire(true, 30.0);
-		if (cost_to_acquire < 0 && !($items[neuromancer, astral pilsner,astral energy drink,astral hot dog] contains it))
+		if (cost_to_acquire < 0 && !($items[neuromancer, astral pilsner,astral hot dog] contains it))
 			continue;
-		if ($items[astral pilsner,astral energy drink,astral hot dog] contains it && my_level() < 11) //nope
+		if ($items[astral pilsner,astral hot dog] contains it && my_level() < 11) //nope
 			continue;
 		
 		SingleConsumption consumption;
@@ -4906,6 +5116,10 @@ void computeConsumptionPlan(ConsumptionPlan plan)
 			forked_adventures += floor(adventures_base * 0.125);
 		}
 		consumption.average_adventures += adventures_weight * adventures_base;
+		//if (overdrinking)
+			//print_html(it + " consumption.average_adventures = " + consumption.average_adventures + " adventures_weight = " + adventures_weight + " adventures_base = " + adventures_base + " consumption.average_pvp_fights = " + consumption.average_pvp_fights);
+		//if (consumption.average_pvp_fights > 0)
+			//printDebug("consumption = " + consumption.to_json());
 		if (consumption.average_adventures <= 0)
 			continue;
 		if (plan.take_into_account_mayoflex)
@@ -4994,7 +5208,6 @@ void computeConsumptionPlan(ConsumptionPlan plan)
 		}
 		if (fabs(to_float(historical_price - mall_price) / to_float(mall_price)) > 0.05) //too high of a change, resort and try again
 		{
-			//printDebug("sorting cat");
 			//float value = (average_adventures[it] * plan.value_of_adventure - (it.cost_to_acquire(true, 30.0) + per_item_extra_cost) );
 			//if (!overdrinking)
 				//value /= to_float(it.itemConsumptionSizeForPlanType(plan.type));
@@ -5008,7 +5221,7 @@ void computeConsumptionPlan(ConsumptionPlan plan)
 			break;
 		}
 	}
-	//printDebug("candidates = " + candidates.to_json());
+	printDebug("candidates = " + candidates.to_json());
 	float approximate_profit_per_drunkenness_expected = good_consumption.SingleConsumptionProfit(plan.value_of_adventure, !overdrinking);
 	/*float approximate_profit_per_drunkenness_expected = (average_adventures[good_item] * plan.value_of_adventure - (good_item.cost_to_acquire(true, 0.0) + per_item_extra_cost) );
 	if (!overdrinking)
@@ -5142,25 +5355,54 @@ void computeConsumptionPlan(ConsumptionPlan plan)
 void executeOrder66(string command)
 {
 	boolean yes = true;
+	
+	if (false)
+		print_html("cli_execute(" + command + ")");
 	if (_confirm_every_order)
 		yes = user_confirm("Execute order " + command + "?");
 	if (!yes)
 		return;
-	cli_execute(command);
+	//try/finally versus return:
+	//if cli_execute() errors ("use 1 chocolate pasta spoon") and we don't store the result, the script, and also every script calling it, stops
+	//try/finally ignores this
+	try
+	{
+		boolean result = cli_execute(command);
+	}
+	finally
+	{
+	}
 }
 
-void acquire_allowing_mall(item it, int total_amount_wanted)
+void acquire_allowing_mall(item it, int total_amount_wanted, int price_limit)
 {
 	int amount = total_amount_wanted - it.available_amount();
 	
 	if (amount <= 0)
 		return;
-	if (can_interact() && it.mall_price() < 100000)
+	if (price_limit <= 0)
+	{
+		price_limit = 100000;
+	}
+	if (can_interact() && it.mall_price() < price_limit)
 	{
 		if (!it.tradeable)
 			return;
-		print_html("Buying " + amount + " " + it + " for " + it.mall_price() + ".");
-		buy(MIN(30, amount), it, MIN(100000, it.mall_price() * 1.25));
+		int price_limit_2 = it.mall_price();
+		price_limit_2 = MIN(price_limit, price_limit_2);
+		print_html("Buying " + amount + " " + it + " for " + price_limit_2 + ".");
+		if (it.mall_price() <= 0)
+		{
+			abort("No. Price is -1.");
+			return;
+		}
+		try
+		{
+			buy(MIN(30, amount), it, MIN(100000, price_limit_2 * 1.25));
+		}
+		finally
+		{
+		}
 	}
 	else
 		retrieve_item(total_amount_wanted, it);
@@ -5183,14 +5425,14 @@ void executeConsumptionPlan(ConsumptionPlan plan)
 			take_shop(amount_to_take_from_shop, it);
 			amount -= amount_to_take_from_shop;
 		}
-		acquire_allowing_mall(it, it.available_amount() + amount);
+		acquire_allowing_mall(it, it.available_amount() + amount, plan.price_limit_for_items[it]);
 	}
 	item [int] food_to_remove;
 	foreach foodstuff, amount in plan.what_to_consume
 	{
 		if (!(__consumption_no_confirm_whitelist contains foodstuff) && __setting_confirm_unknown_consumables)
 		{
-			boolean yes = user_confirm("Allow consuming " + foodstuff + "?");
+			boolean yes = true;// user_confirm("Allow consuming " + foodstuff + "?");
 			if (!yes)
 			{
 				food_to_remove.listAppend(foodstuff);
@@ -5219,7 +5461,7 @@ void executeConsumptionPlan(ConsumptionPlan plan)
 			}
 		}
 		//acquire:
-		acquire_allowing_mall(foodstuff, amount);
+		acquire_allowing_mall(foodstuff, amount, plan.price_limit_for_items[foodstuff]);
 	}
 	foreach key, it in food_to_remove
 	{
@@ -5404,6 +5646,10 @@ void consumeDrink(int mpa)
 	__setting_meat_per_adventure = mpa;
 	ConsumptionPlan drink_plan;
 	drink_plan.room_left = inebriety_limit() - my_inebriety();
+	if (__test_run)
+	{
+		drink_plan.room_left = inebriety_limit();
+	}
 	drink_plan.value_of_adventure = __setting_meat_per_adventure;
 	drink_plan.type = CONSUMPTION_PLAN_TYPE_DRINK;
 	if (drink_plan.room_left <= 0 && __setting_debug)
@@ -5422,6 +5668,10 @@ void consumeFood(int mpa)
 	__setting_meat_per_adventure = mpa;
 	ConsumptionPlan eat_plan;
 	eat_plan.room_left = fullness_limit() - my_fullness();
+	if (__test_run)
+	{
+		eat_plan.room_left = fullness_limit();
+	}
 	eat_plan.value_of_adventure = __setting_meat_per_adventure;
 	eat_plan.type = CONSUMPTION_PLAN_TYPE_EAT;
 	if (eat_plan.room_left <= 0 && __setting_debug)
@@ -5438,11 +5688,13 @@ void consumeFood(int mpa)
 			want_potion_of_the_field_gar = true;
 	}
 	
-	if (!__simulate_only && !__setting_debug && want_potion_of_the_field_gar && (can_interact() || $item[potion of the field gar].available_amount() > 0 || $effect[gar-ish].have_effect() > 0))
+	if (!__simulate_only && !__setting_debug && want_potion_of_the_field_gar && (can_interact() || $item[potion of the field gar].available_amount() > 0 || $effect[gar-ish].have_effect() > 0) && availableFullness() >= 5)
 	{
 		int garish = $effect[gar-ish].have_effect();
 		if (garish == 0)
-			cli_execute("use potion of the field gar");
+		{
+			boolean result = cli_execute("use potion of the field gar");
+		}
 		garish = $effect[gar-ish].have_effect();
 		if (garish == 0) //it's a monday, re-do
 		{
@@ -5473,6 +5725,10 @@ void consumeSpleen(int mpa)
 	__setting_meat_per_adventure = mpa;
 	ConsumptionPlan spleen_plan;
 	spleen_plan.room_left = spleen_limit() - my_spleen_use();
+	if (__test_run)
+	{
+		spleen_plan.room_left = spleen_limit();
+	}
 	spleen_plan.value_of_adventure = __setting_meat_per_adventure;
 	spleen_plan.type = CONSUMPTION_PLAN_TYPE_SPLEEN;
 	if (spleen_plan.room_left <= 0 && __setting_debug)
@@ -5492,7 +5748,7 @@ void overdrink(int mpa)
 	
 	if (inebriety_limit() - my_inebriety() != 0)
 		return;
-		
+	
 	if ($familiar[stooper].have_familiar())
 	{
 		//have you seen the well-to-do?
@@ -5524,6 +5780,37 @@ void overdrink(int mpa)
 	consumeSpleen(mpa);
 }
 
+void handleMagicalSausage()
+{
+	if (__setting_debug || __simulate_only)
+	{
+		return;
+	}
+	//_sausagesEaten, _sausagesMade, sausageGrinderUnits
+	//handle magical sausage casings:
+	//now consume actual sausage:
+	int breakout = 25;
+	while (breakout > 0 && get_property_int("_sausagesEaten") < 23 && $item[magical sausage].have())
+	{
+		breakout -= 1;
+		int sausages_eaten = get_property_int("_sausagesEaten");
+		if (__setting_meat_per_adventure < 5000 && sausages_eaten >= get_property_int("_sausagesMade"))
+		{
+			//only consume what we've made today
+			break;
+		}
+		int approximate_meat_cost = 111 * (sausages_eaten + 1);
+		if (approximate_meat_cost <= __setting_meat_per_adventure)
+		{
+			eat(1, $item[magical sausage]);
+		}
+		else
+		{
+			break;
+		}
+	}
+}
+
 void consumeOutputHelp()
 {
 	string [string] commands = {
@@ -5553,6 +5840,7 @@ void consumeOutputHelp()
 
 void main(string arguments)
 {
+	//abort("you sure?");
 	if (!get_property("autoSatisfyWithMall").to_boolean() && can_interact())
 	{
 		print_html("Please run (or click on) this command:");
@@ -5588,7 +5876,12 @@ void main(string arguments)
 		{
 			__simulate_only = true;
 		}
-		if (s.contains_text("debug")) //for my use
+		if (s.contains_text("test"))
+		{
+			__test_run = true;
+			__simulate_only = true;
+		}
+		if (s.contains_text("verbose") || s.contains_text("debug")) //for my use
 		{
 			__setting_debug = true;
 		}
@@ -5668,6 +5961,10 @@ void main(string arguments)
 		
 	ConsumptionPlan drink_plan;
 	drink_plan.room_left = MAX(0, inebriety_limit() - my_inebriety());
+	if (__test_run)
+	{
+		drink_plan.room_left = inebriety_limit();
+	}
 	drink_plan.value_of_adventure = __setting_meat_per_adventure;
 	drink_plan.type = CONSUMPTION_PLAN_TYPE_DRINK;
 	if (drink_plan.room_left <= 0 && __setting_debug)
@@ -5705,7 +6002,7 @@ void main(string arguments)
 	
 	if (__allow_food)
 	{
-		if (fullness_limit() - my_fullness() > 0 || __setting_debug)
+		if (fullness_limit() - my_fullness() > 0 || __setting_debug || __test_run)
 		{
 			consumeFood(__setting_meat_per_adventure);
 		}
@@ -5730,7 +6027,8 @@ void main(string arguments)
 			cli_execute("buy blue mana @ 40000; cast ancestral recall");
 		}
 	}
-	
+	//magical sausage:
+	handleMagicalSausage();
 	if ($effect[Just the Best Anapests].have_effect() > 0) //tracking bugs out
 		cli_execute("shrug Just the Best Anapests");
 	if ($effect[QWOPped Up].have_effect() > 0 && get_property_int("_hotTubSoaks") < 5 && $item[clan vip lounge key].item_amount() > 0)
