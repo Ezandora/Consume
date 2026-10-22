@@ -1754,12 +1754,13 @@ boolean numberIsInRangeInclusive(int v, int min, int max)
 
 
 
-buffer to_buffer(string str)
+//now built-in:
+/*buffer to_buffer(string str)
 {
 	buffer result;
 	result.append(str);
 	return result;
-}
+}*/
 
 buffer copyBuffer(buffer buf)
 {
@@ -2342,6 +2343,9 @@ static
     int PATH_QUANTUM_TERRARIUM = 42;
     int PATH_QUANTUM = 42;
     int PATH_WILDFIRE = 43;
+    //missing paths here
+    int PATH_SHRUNKEN_ADVENTURER = 49;
+    int PATH_SMALL = 49;
 }
 
 float numeric_modifier_replacement(item it, string modifier_name)
@@ -2755,6 +2759,15 @@ boolean [skill] makeConstantSkillArrayMutable(boolean [skill] array)
 boolean [effect] makeConstantEffectArrayMutable(boolean [effect] array)
 {
     boolean [effect] result;
+    foreach k in array
+        result[k] = array[k];
+    
+    return result;
+}
+
+boolean [int] makeConstantIntArrayMutable(boolean [int] array)
+{
+    boolean [int] result;
     foreach k in array
         result[k] = array[k];
     
@@ -4339,7 +4352,7 @@ boolean locationNextNCWillBeCartography(location l)
     {
         relevant_nc_names = $strings[Mob Maptality,Bench Warrant,Fire Up Above,This Looks Like a Good Bush for an Ambush];
     }
-    else if (l == $location[Frat House]) //not 100%. FIXME correct zone?
+    else if (l == $location[The Orcish Frat House]) //not 100%. FIXME correct zone?
     {
         relevant_nc_names = $strings[Oh Yeah!,Purple Hazers,From Stoked to Smoked,Murder by Death,Sing This Explosion to Me]; //is this correct...?
     }
@@ -4407,6 +4420,27 @@ boolean locationIsEventSpecific(location l)
 	if (l.zone == "Twitch" || l.zone == "Events") return true;
 	
 	return false;
+}
+
+
+effect [skill] __skill_effect_override =
+{
+	$skill[Seal Clubbing Frenzy]:$effect[Seal Clubbing Frenzy],
+	$skill[Patience of the Tortoise]:$effect[Patience of the Tortoise],
+	$skill[Manicotti Meditation]:$effect[Pasta Oneness],
+	$skill[Sauce Contemplation]:$effect[Saucemastery],
+	$skill[Disco Aerobics]:$effect[Disco State of Mind],
+	$skill[Moxie of the Mariachi]:$effect[Mariachi Mood]
+};
+
+//replacement for to_effect()
+effect primaryEffectFromSkill(skill s)
+{
+    if (__skill_effect_override contains s)
+        return __skill_effect_override[s];
+    if (s == $skill[bind spice ghost] && $item[legendary pasta wand].item_amount() + $item[legendary pasta wand].equipped_amount() > 0)
+        return $effect[Legendary Spice Haze];
+    return s.to_effect();
 }
 
 int [item] __cost_to_acquire_override;
@@ -4653,7 +4687,7 @@ void castOde(int min_turns)
 }
 
 //Use "consume.ash help" to see commands.
-string __consumption_version = "1.0.7";
+string __consumption_version = "1.0.8";
 
 boolean __setting_avoid_nontradeables = true; //if you disable this, you're on your own - script has no real idea how to score a non-tradeable item
 float __setting_meat_per_adventure = get_property("valueOfAdventure").to_int();
@@ -4669,26 +4703,113 @@ boolean [item] __consumption_personal_blacklist = $items[long pork lasagna];
 
 //FIXME support: munchies pills, those batfellow consumes, melanges?, UMSBs? alien plant pods?
 //prayers, semi-rares
+
+
+
 static
 {
 	boolean [item] __all_drinks;
 	boolean [item] __all_food;
 	boolean [item] __all_spleen;
+	boolean [item] __craftable_from_tradeables;
 	
-	void initialiseDrinks()
+	
+	
+	void initialiseConsumables()
 	{
 		foreach it in $items[]
 		{
+			if (it.inebriety + it.fullness + it.spleen == 0) continue;
 			if (it.inebriety > 0)
 				__all_drinks[it] = true;
 			if (it.fullness > 0)
 				__all_food[it] = true;
 			if (it.spleen > 0)
 				__all_spleen[it] = true;
+			if (!it.tradeable)
+			{
+				string craft_type = it.craft_type();
+				if (craft_type == "Mixing")
+				{
+					boolean passes = true;
+					foreach it2 in it.get_ingredients()
+					{
+						if (!it2.tradeable)
+						{
+							passes = false;
+							break;
+						}
+					}
+					if (passes)
+					{
+						__craftable_from_tradeables[it] = true;
+					}
+				}
+			}
 		}
 	}
-	initialiseDrinks();
+	initialiseConsumables();
 }
+
+Record DailyLimit
+{
+	string type;
+	string tracking_property;
+	int consumption_maximum;
+	int consumption_used_today;
+};
+
+DailyLimit [item] __consumption_daily_limits;
+void initialiseDailyLimit()
+{
+	foreach key, line in file_to_array("data/dailylimits.txt")
+	{
+		string [int] split = line.split_string("\t");
+		string split_type;
+		string split_it_name;
+		string split_tracking_property;
+		string split_limit;
+		
+		if (split.count() >= 1)
+			split_type = split[0];
+		if (split.count() >= 2)
+			split_it_name = split[1];
+		if (split.count() >= 3)
+			split_tracking_property = split[2];
+		if (split.count() >= 4)
+			split_limit = split[3];
+		
+		if (split_type != "Eat" && split_type != "Drink")
+			continue;
+		item it = split_it_name.to_item();
+		
+		DailyLimit limit_settings;
+		limit_settings.type = split_type;
+		limit_settings.tracking_property = split_tracking_property;
+		if (split_limit == "")
+		{
+			if (get_property(limit_settings.tracking_property).to_boolean())
+				limit_settings.consumption_used_today = 1;
+			limit_settings.consumption_maximum = 1;
+		}
+		else
+		{
+			limit_settings.consumption_used_today = get_property(limit_settings.tracking_property).to_int();
+			limit_settings.consumption_maximum = split_limit.to_int();
+		}
+		__consumption_daily_limits[it] = limit_settings;
+		//print_html(limit_settings.to_json());
+	}
+}
+initialiseDailyLimit();
+
+int DailyLimitConsumptionRemaining(item it)
+{
+	if (!(__consumption_daily_limits contains it))
+		return 10000;
+	return __consumption_daily_limits[it].consumption_maximum - __consumption_daily_limits[it].consumption_used_today;
+}
+
 //don't edit these, they're all linked to arguments:
 boolean __setting_debug = false; //"debug" argument, used for writing this. if you're reading this, you probably want the "simulate" command
 boolean _confirm_every_order = false;
@@ -4853,7 +4974,7 @@ void computeConsumptionPlanMisc(ConsumptionPlan plan)
 			historical_profit = revenue;
 		if (historical_profit < -1000) //eh
 			continue;
-		if (!consumption.it.tradeable && consumption.it.available_amount() == 0) continue;
+		if (!consumption.it.tradeable && consumption.it.available_amount() == 0 && !__craftable_from_tradeables[consumption.it]) continue;
 		if (!can_interact() && consumption.it.available_amount() + consumption.it.creatable_amount() - plan.what_to_consume[consumption.it] <= 0) continue;
 		float cost = consumption.it.cost_to_acquire();
 		float profit = revenue - cost;
@@ -5071,9 +5192,9 @@ void computeConsumptionPlan(ConsumptionPlan plan)
 			continue;
 		if (!can_interact() && it.available_amount() + it.creatable_amount() - plan.what_to_consume[it] <= 0)
 			continue;
-		if (!it.tradeable && it.available_amount() - plan.what_to_consume[it] == 0)
+		if (!it.tradeable && it.available_amount() - plan.what_to_consume[it] == 0 && !__craftable_from_tradeables[it])
 			continue;
-		if (!it.tradeable && !it.quest && __setting_avoid_nontradeables && can_interact())
+		if (!it.tradeable && !it.quest && __setting_avoid_nontradeables && can_interact() && !__craftable_from_tradeables[it])
 			continue;
 		if (it.levelreq > my_level() || (it.levelreq >= 13 && !can_interact()))
 			continue;
@@ -5083,9 +5204,19 @@ void computeConsumptionPlan(ConsumptionPlan plan)
 		{
 			continue;
 		}
+		
 		//if (it.historical_price() > 1000000)
 			//continue;
 		int cost_to_acquire = it.cost_to_acquire(true, 30.0);
+		
+		if (cost_to_acquire < 0 && __craftable_from_tradeables[it])
+		{
+			cost_to_acquire = 0;
+			foreach it2 in it.get_ingredients()
+			{
+				cost_to_acquire += it2.cost_to_acquire(true, 30.0);
+			}
+		}
 		if (cost_to_acquire < 0 && !($items[neuromancer, astral pilsner,astral hot dog] contains it))
 			continue;
 		if ($items[astral pilsner,astral hot dog] contains it && my_level() < 11) //nope
@@ -5188,8 +5319,10 @@ void computeConsumptionPlan(ConsumptionPlan plan)
 	//item good_item = $item[none];
 	SingleConsumption good_consumption;
 	
-	while (true)
+	int breakout = 50;
+	while (breakout > 0)
 	{
+		breakout -= 1;
 		SingleConsumption consumption = candidates[0];
 		int historical_price = 0;
 		int mall_price = 0;
@@ -5314,6 +5447,10 @@ void computeConsumptionPlan(ConsumptionPlan plan)
 			{
 				if ((!it.tradeable || !can_interact()) && it.available_amount() + it.creatable_amount() - plan.what_to_consume[it] <= 0) //can't make more
 					should_break = true;
+				if (it.DailyLimitConsumptionRemaining() - plan.what_to_consume[it] <= 0)
+				{
+					should_break = true;
+				}
 			}
 			if (should_break)
 				break;
@@ -5384,7 +5521,21 @@ void acquire_allowing_mall(item it, int total_amount_wanted, int price_limit)
 	{
 		price_limit = 100000;
 	}
-	if (can_interact() && it.mall_price() < price_limit)
+	if (it.mall_price() >= price_limit || it.mall_price() < 0)
+	{
+		if (it.available_amount() + it.creatable_amount() >= total_amount_wanted)
+		{
+			//retrieve_item doesn't work on tiny plastic sword items very well for some reason)
+			//(shouldn't it auto-create? dunno)
+			if (it.available_amount() == 0 && total_amount_wanted == 1 && $item[tiny plastic sword].available_amount() > 0 && $items[bodyslam,cherry bomb,dirty martini,grogtini,sangria del diablo,small Crimbo Pressie,vesper] contains it)
+				create(it); //I usually avoid this because I consider it dangerous to use. Could make something bad by accident?
+			else
+				retrieve_item(total_amount_wanted, it);
+		}
+		else
+			return;
+	}
+	else if (can_interact() && it.mall_price() < price_limit)
 	{
 		if (!it.tradeable)
 			return;
@@ -5636,7 +5787,6 @@ void executeConsumptionPlan(ConsumptionPlan plan)
 	RestoreArchivedEquipment();
 	if (plan.type == CONSUMPTION_PLAN_TYPE_DRINK && $skill[The Ode to Booze].have_skill() && can_interact())
 		cli_execute("shrug ode");
-	
 }
 
 
@@ -5658,6 +5808,9 @@ void consumeDrink(int mpa)
 	computeConsumptionPlan(drink_plan);
 	if (!__setting_debug && !__simulate_only)
 	{
+		/*boolean yes = user_confirm("Execute plan " + drink_plan.to_json() + "?");
+		if (!yes)
+			return;*/
 		executeConsumptionPlan(drink_plan);
 	}
 }
@@ -5666,8 +5819,89 @@ void consumeFood(int mpa)
 {
 	if (!__allow_food) return;
 	__setting_meat_per_adventure = mpa;
+	
+	int secret_food_already_consumed = 0;
+	
+	if (get_property("ezandoraConsumeEatCornedBeats").to_boolean() && fullness_limit() - my_fullness() >= 4 && $item[time-spinner].available_amount() > 0 && get_property("_timeSpinnerMinutesUsed").to_int() <= 1)
+	{
+		//corned beet
+		int amount_eating = 4; //three if it's already time spun
+		//check if it's already time spun with _timeSpinnerFoodAvailable
+		
+		item source_item = $item[corned beet];
+		
+		boolean source_item_available_for_spinning = false;
+		foreach key, item_id_string in get_property("_timeSpinnerFoodAvailable").split_string_alternate(",")
+		{
+			item it = item_id_string.to_int_silent().to_item();
+			if (it == source_item)
+			{
+				source_item_available_for_spinning = true;
+				amount_eating -= 1;
+			}
+		}
+		item obtainable_encryption_key = $item[none];
+		int encryption_key_selector = my_id().to_int() % 4;
+		if (encryption_key_selector == 0)
+		{
+			obtainable_encryption_key = $item[pirate encryption key alpha];
+		}
+		else if (encryption_key_selector == 1)
+		{
+			obtainable_encryption_key = $item[pirate encryption key bravo];
+		}
+		else if (encryption_key_selector == 2)
+		{
+			obtainable_encryption_key = $item[pirate encryption key charlie];
+		}
+		else if (encryption_key_selector == 3)
+		{
+			obtainable_encryption_key = $item[pirate encryption key delta];
+		}
+		
+		int revenue = obtainable_encryption_key.mall_price() * amount_eating;
+		
+		int cost = source_item.mall_price();
+		
+		int profit = revenue - cost;
+		float profit_per_fullness = to_float(profit) / to_float(amount_eating);
+		print_html("Crimbo2023 revenue = " + revenue + ", cost = " + cost + ", profit = " + profit);
+		if (source_item.available_amount() > 3 && profit >= 5000 && obtainable_encryption_key.available_amount() + obtainable_encryption_key.shop_amount() < 200)
+		{
+			if (source_item_available_for_spinning)
+			{
+				print_html("eating three " + source_item + " via time-spinner");
+			}
+			else
+				print_html("eating four " + source_item + ", three with time-spinner");
+			if (__simulate_only)
+				secret_food_already_consumed += amount_eating;
+			if (!__simulate_only)
+			{
+				if (!get_property("_milkOfMagnesiumUsed").to_boolean())
+				{
+					cli_execute("use milk of magnesium");
+				}
+				//eat it, time spin it
+				if (!source_item_available_for_spinning)
+					eat(1, source_item);
+				int breakout = 10;
+				while (get_property("_timeSpinnerMinutesUsed").to_int() <= 7 && breakout > 0)
+				{
+					breakout -= 1;
+					visit_url("inv_use.php?whichitem=9104");
+					visit_url("choice.php?whichchoice=1195&option=2");
+					visit_url("choice.php?whichchoice=1197&option=1&foodid=" + source_item.to_int());
+				}
+			}
+		}
+	}
+	//abort("ha ha! go back. none of this.");
+	
+	
+	
 	ConsumptionPlan eat_plan;
-	eat_plan.room_left = fullness_limit() - my_fullness();
+	eat_plan.room_left = fullness_limit() - my_fullness() - secret_food_already_consumed;
 	if (__test_run)
 	{
 		eat_plan.room_left = fullness_limit();
@@ -5790,6 +6024,10 @@ void handleMagicalSausage()
 	//handle magical sausage casings:
 	//now consume actual sausage:
 	int breakout = 25;
+	if (can_interact() && $item[magical sausage].storage_amount() > 0)
+	{
+		cli_execute("pull * magical sausage");
+	}
 	while (breakout > 0 && get_property_int("_sausagesEaten") < 23 && $item[magical sausage].have())
 	{
 		breakout -= 1;
